@@ -1,64 +1,159 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import svelteLogo from './assets/svelte.svg';
-  import viteLogo from '/vite.svg';
-  import Counter from './lib/Counter.svelte';
+  import { onMount } from "svelte";
 
-  let apiKey: string = '';
+  let ingredients: string = "";
+  let ingredientList: string[] = [];
+  let recipes: any[] = [];
+  let user: string | null = null;
 
-  onMount(async () => {
-    try {
-      const res = await fetch('/api/key');
-      const data = await res.json();
-      apiKey = data.apiKey;
-    } catch (error) {
-      console.error('Failed to fetch API key:', error);
+  let showAccountSidebar = false;
+
+  const BACKEND_BASE =
+    import.meta.env.VITE_BACKEND_BASE || "http://localhost:8000";
+
+  function login() {
+    window.location.href = `${BACKEND_BASE}/login`;
+  }
+
+  function logout() {
+    window.location.href = `${BACKEND_BASE}/logout`;
+  }
+
+  function addIngredient() {
+    const trimmed = ingredients.trim();
+    if (trimmed && !ingredientList.includes(trimmed)) {
+      ingredientList.push(trimmed);
+      ingredients = "";
     }
-  }); 
+  }
+
+  function removeIngredient(ing: string) {
+    ingredientList = ingredientList.filter((i) => i !== ing);
+  }
+
+  async function searchRecipes() {
+    try {
+      const res = await fetch(
+        `/recipes?ingredients=${encodeURIComponent(ingredients)}`
+      );
+      const recipeResults = await res.json();
+
+      const enriched = await Promise.all(
+        recipeResults.slice(0, 6).map(async (recipe: any) => {
+          const nutritionRes = await fetch(
+            `https://api.spoonacular.com/recipes/${recipe.id}/nutritionWidget.json?apiKey=c428e118a688421f85feba24422d004f`
+          );
+          const nutrition = await nutritionRes.json();
+          return {
+            ...recipe,
+            calories: nutrition.calories || "N/A",
+          };
+        })
+      );
+
+      recipes = enriched;
+    } catch (error) {
+      console.error("Error fetching recipes or nutrition:", error);
+    }
+  }
 </script>
 
 <main>
-  <div>
-    <a href="https://vite.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
+  <header>
+    <div class="header-top">
+      <div class="auth-controls">
+        <img
+          src="/home.svg"
+          alt="Home"
+          class="home-icon"
+          on:click={login}
+          title="Home"
+        />
+        {#if user}
+          <div class="relative">
+            <button
+              class="text-sm font-medium underline"
+              on:click={() => (showAccountSidebar = !showAccountSidebar)}
+            >
+              Account ▾
+            </button>
+            {#if showAccountSidebar}
+              <div
+                class="absolute right-0 bg-white border shadow p-2 mt-2 z-50"
+              >
+                <button on:click={logout} class="text-red-600 text-sm"
+                  >Logout</button
+                >
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <img
+            src="/account.svg"
+            alt="Login"
+            class="login-icon"
+            on:click={login}
+            title="Login"
+          />
+        {/if}
+      </div>
+    </div>
+  </header>
+
+  <p class="text-center text-gray-500 text-lg mb-8">Turn waste into taste!</p>
+
+  <div class="flex items-center justify-center min-h-[60vh]">
+    <div class="relative w-full max-w-3xl">
+      <input
+        type="text"
+        bind:value={ingredients}
+        placeholder="Enter ingredients..."
+        class="bg-purple-100 w-full pl-6 pr-12 py-5 rounded-full text-base focus:outline-none shadow-md"
+      />
+      <button
+        on:click={addIngredient}
+        class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-700 text-xl"
+      >
+        🔍
+      </button>
+    </div>
   </div>
-  <h1>Vite + Svelte</h1>
 
-  <div class="card">
-    <Counter />
+  <div class="flex flex-wrap justify-center gap-3 mt-4 mb-8">
+    {#each ingredientList as ing}
+      <span
+        class="bg-white border px-4 py-2 rounded-full flex items-center shadow-sm gap-2"
+      >
+        <span>{ing}</span>
+        <button
+          class="text-gray-500 hover:text-red-500"
+          on:click={() => removeIngredient(ing)}>×</button
+        >
+      </span>
+    {/each}
   </div>
 
-  <p>
-    Your API Key: <strong>{apiKey}</strong>
-  </p>
+  <button
+    on:click={searchRecipes}
+    class="bg-green-600 text-white px-6 py-2 rounded block mx-auto mb-10"
+  >
+    Search Recipes
+  </button>
 
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="read-the-docs">
-    Click on the Vite and Svelte logos to learn more
-  </p>
+  <h2 class="text-xl font-semibold mb-4">Results:</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+    {#each recipes.slice(0, 6) as recipe}
+      <div class="border rounded shadow p-4">
+        <h3 class="font-bold text-lg">{recipe.title}</h3>
+        <div class="text-sm text-gray-600 mt-1">
+          Calories: {recipe.calories}
+        </div>
+        <img
+          src={recipe.image}
+          alt={recipe.title}
+          class="w-full h-40 object-cover rounded mb-2"
+        />
+      </div>
+    {/each}
+  </div>
 </main>
-
-<style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
-  }
-</style>
