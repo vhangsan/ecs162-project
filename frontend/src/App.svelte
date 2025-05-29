@@ -1,4 +1,6 @@
+
 <script lang="ts">
+  import './app.css';
   import { onMount } from "svelte";
 
   let ingredients: string = "";
@@ -59,6 +61,7 @@
 </script>
 
 <main>
+  
   <header>
     <div class="header-top">
       <div class="auth-controls">
@@ -97,9 +100,11 @@
           />
         {/if}
       </div>
-    </div>
+  </div>
   </header>
-
+<div class="hero-image">
+  <img src="/Hero_Image.png" alt="Hero Image" /> <!-- Hero Image -->
+</div>
   <p class="text-center text-gray-500 text-lg mb-8">Turn waste into taste!</p>
 
   <div class="flex items-center justify-center min-h-[60vh]">

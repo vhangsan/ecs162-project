@@ -25,3 +25,16 @@
 .account-dropdown {
   z-index: 50;
 }
+
+.temp_organizing_color { /* Temporary class to indicate separation*/
+  background-color: lightblue;
+  display: inline-block;
+}
+
+.hero-image img { /* Hero Image page scaling*/
+  width: 100%;
+}
+
+body {
+  background-color: #F5F2DA; /* Background color*/
+}
