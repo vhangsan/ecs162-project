@@ -63,6 +63,12 @@
 <main>
   
   <header>
+    <div class="grid_container">
+      <div class="header">
+        <p>Website Name</p>
+      </div>
+      <div class="header_icons">
+
     <div class="header-top">
       <div class="auth-controls">
         <img
@@ -99,11 +105,21 @@
             title="Login"
           />
         {/if}
+        </div>
       </div>
+    </div>
   </div>
   </header>
-<div class="hero-image">
+<div class="grid_container">
+<div class="hero_image">
   <img src="/Hero_Image.png" alt="Hero Image" /> <!-- Hero Image -->
+</div>
+  <div class="favorites_wrapper">
+    <div class="student_favorite1"><img src="/Temp_Image.jpg"></div>
+    <div class="student_favorite2"><img src="/Temp_Image.jpg"></div>
+    <div class="student_favorite3"><img src="/Temp_Image.jpg"></div>
+</div>
+
 </div>
   <p class="text-center text-gray-500 text-lg mb-8">Turn waste into taste!</p>
 
