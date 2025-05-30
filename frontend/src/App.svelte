@@ -110,20 +110,73 @@
     </div>
   </div>
   </header>
+
+
+
+
+
+
+
 <div class="grid_container">
 <div class="hero_image">
   <img src="/Hero_Image.png" alt="Hero Image" /> <!-- Hero Image -->
+</div>
+<div class="use_my_ingredients"><strong>USE MY INGREDIENTS</strong></div>
+<div class="find_specific_recipe"><strong>FIND SPECIFIC RECIPE</strong></div>
+
+
+
+
+<div class="search_bar"> <!-- Search Bar -->
+    <div class="flex items-center justify-center min-h-[60vh]">
+    <div class="relative w-full max-w-3xl">
+      <input
+        type="text"
+        bind:value={ingredients}
+        placeholder="Enter ingredients..."
+        class="search_bar"
+      />
+    </div>
+  </div>
+</div>
+<div class="search_buttons"> <!-- Search Buttons -->
+  <button
+    on:click={addIngredient}
+    class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-700 text-xl"
+      >
+    🔍
+  </button>
+  <button
+    on:click={searchRecipes}
+    class="bg-green-600 text-white px-6 py-2 rounded block mx-auto mb-10"
+  >
+    Search Recipes
+  </button>
+</div>
+
+
+
+
+<div class="student_favorite"> <!-- Containers for STUDENT FAVORITES -->
+  <p><strong>STUDENT FAVORITES</strong></p>
 </div>
   <div class="favorites_wrapper">
     <div class="student_favorite1"><img src="/Temp_Image.jpg"></div>
     <div class="student_favorite2"><img src="/Temp_Image.jpg"></div>
     <div class="student_favorite3"><img src="/Temp_Image.jpg"></div>
 </div>
-
 </div>
-  <p class="text-center text-gray-500 text-lg mb-8">Turn waste into taste!</p>
 
-  <div class="flex items-center justify-center min-h-[60vh]">
+
+
+
+
+
+
+
+  <!-- <p class="text-center text-gray-500 text-lg mb-8">Turn waste into taste!</p> -->
+
+  <!-- <div class="flex items-center justify-center min-h-[60vh]">    ORIGINAL SEARCH BAR
     <div class="relative w-full max-w-3xl">
       <input
         type="text"
@@ -138,7 +191,7 @@
         🔍
       </button>
     </div>
-  </div>
+  </div> -->
 
   <div class="flex flex-wrap justify-center gap-3 mt-4 mb-8">
     {#each ingredientList as ing}
@@ -154,14 +207,12 @@
     {/each}
   </div>
 
-  <button
+  <!-- <button
     on:click={searchRecipes}
     class="bg-green-600 text-white px-6 py-2 rounded block mx-auto mb-10"
   >
     Search Recipes
-  </button>
-
-  <h2 class="text-xl font-semibold mb-4">Results:</h2>
+  </button> -->
   <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
     {#each recipes.slice(0, 6) as recipe}
       <div class="border rounded shadow p-4">

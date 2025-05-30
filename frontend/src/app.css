@@ -22,6 +22,7 @@
   cursor: pointer;
   transition: transform 0.2s ease;
 }
+
 .account-dropdown {
   z-index: 50;
 }
@@ -38,6 +39,8 @@ body { /* Background color */
     ". header1 header1 header2"
     "hero_im hero_im hero_im hero_im"
     ". USE_MY_INGREDIENTS FIND_SPECIFIC_RECIPE ."
+    ". SEARCH SEARCH ."
+    ". SEARCH_BUTTONS SEARCH_BUTTONS ."
     ". STUDENT_FAVORITES STUDENT_FAVORITES ."
     "FAV FAV FAV FAV";
 }
@@ -50,7 +53,6 @@ body { /* Background color */
   width: 100%;
   height: 100%;
   display: block;
-
 }
 
 .header{ /* Settings for website name */
@@ -62,7 +64,6 @@ body { /* Background color */
   align-items: center;
   justify-content: center; 
   line-height: 0;
-
 }
 
 .header_icons { /* Settings for Home and Account icons */
@@ -92,12 +93,54 @@ body { /* Background color */
   border-radius: 8px;
   font-weight: bold;
   border: 2px solid black;
-
 }
+
 .student_favorite1 img, /* Setting image sizing for student favorites */
 .student_favorite2 img,
 .student_favorite3 img {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.student_favorite{ /* Student Favorite text settings */
+  grid-area: STUDENT_FAVORITES;
+  text-align: center;
+  color: #095D1F;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: 30px;
+  line-height: 0;
+}
+
+.use_my_ingredients{ /* USE MY INGREDIENTS text settings */
+  grid-area: USE_MY_INGREDIENTS;
+  text-align: center;
+  color: #095D1F;
+  font-family:Arial, Helvetica, sans-serif;
+  font-size: 20px;
+}
+
+.find_specific_recipe{ /* FIND SPECIFIC RECIPE text settings */
+  grid-area: FIND_SPECIFIC_RECIPE;
+  text-align: center;
+  color: #095D1F;
+  font-family:Arial, Helvetica, sans-serif;
+  font-size: 20px;
+}
+
+.search_bar{ /* Search bar settings */
+  grid-area: SEARCH;
+  width: 80%;
+  text-align: center;
+  margin: auto;
+  border-radius: 100px;  
+  outline: none;
+  font-size: 20px;
+}
+
+.search_buttons{ /* Search buttons alignment */
+  grid-area: SEARCH_BUTTONS;
+  gap: 4px;
+  display: flex;
+  justify-content: center;
 }
