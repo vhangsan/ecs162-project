@@ -213,3 +213,45 @@ body { /* Background color */
   grid-area: Instructions;
   background-color: lightblue;
 }
+
+
+.grid_container_favorite {
+  display: grid;
+  width: 100vw;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  grid-template-columns: 1fr 3fr 3fr 1fr;
+  grid-template-rows: auto auto auto auto auto;
+  grid-template-areas:
+    ". header1 header1 header2"
+    "my_favorite my_favorite my_favorite my_favorite"
+    "flex flex flex flex"
+}
+
+.my_favorite{
+  grid-area: my_favorite;
+  font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+  color: #095D1F;
+  font-size: 44px;
+}
+
+.flex_favorites{
+  grid-area: flex;
+  display: flex;
+  border: 2px solid black;
+  padding: 1rem;
+  justify-content: center;
+  align-items: center;
+  border-radius: 16px;
+  background-color: white;
+}
+
+.flex_favorites img {
+  max-width: 100%;   
+  max-height: 100%;  
+  width: auto;      
+  height: auto;
+  display: block;     
+}

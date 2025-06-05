@@ -66,6 +66,7 @@
   {#if currentPage === 'home'}
 
   <button on:click={() => currentPage = 'recipe'}>Recipe</button>
+  <button on:click={() => currentPage = 'favorites'}>Favorites</button>
 
   <header>
     <div class="grid_container">
@@ -274,5 +275,20 @@
     <p>Cooking instructions</p>
   </div>
 </div>
+  {:else if currentPage === 'favorites'}
+  <div class="grid_container_favorite">
+    <p class="header">
+      Website Name
+    </p>
+  <div class="header_icons">
+    <button on:click={() => currentPage = 'home'}>Home</button>
+  </div>
+  <div class="my_favorite">
+    <p><strong>My Favorite(s) (#)</strong></p>
+  </div>
+  <div class="flex_favorites">
+    <img src="/Temp_Image.jpg" alt="Recipe Image" />
+  </div>
+  </div>
   {/if}
 </main>
