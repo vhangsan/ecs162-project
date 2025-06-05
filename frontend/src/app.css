@@ -144,3 +144,72 @@ body { /* Background color */
   display: flex;
   justify-content: center;
 }
+
+
+.grid_container_recipe {
+  display: grid;
+  width: 100vw;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  grid-template-columns: 1fr 3fr 3fr 1fr;
+  grid-template-rows: auto auto auto auto auto;
+  grid-template-areas:
+    ". header1 header1 header2"
+    "Food_Name . Image Image"
+    "Reviews . Image Image"
+    "Ingredients . . Neutrition"
+    "Instructions . . .";
+}
+
+.website_name_recipe {
+  grid-area: header1;
+  font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+  color: #095D1F;
+  font-size: 50px;
+  display: flex; 
+  align-items: center;
+  justify-content: center; 
+  line-height: 0;
+}
+
+.Image {
+  grid-area: Image;
+  background-color: lightblue;
+}
+
+.Food_Name {
+  grid-area: Food_Name;
+  background-color: lightblue;
+
+}
+
+.Reviews {
+  grid-area: Reviews;
+  background-color: lightblue;
+
+}
+
+.Image img,
+.Reviews img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.Ingredients {
+  grid-area: Ingredients;
+  background-color: lightblue;
+}
+
+.Neutrition {
+  grid-area: Neutrition;
+  background-color: lightblue;
+
+}
+
+.Instructions {
+  grid-area: Instructions;
+  background-color: lightblue;
+}

@@ -1,8 +1,10 @@
 
 <script lang="ts">
+
   import './app.css';
   import { onMount } from "svelte";
 
+  let currentPage = 'home';
   let ingredients: string = "";
   let ingredientList: string[] = [];
   let recipes: any[] = [];
@@ -61,7 +63,10 @@
 </script>
 
 <main>
-  
+  {#if currentPage === 'home'}
+
+  <button on:click={() => currentPage = 'recipe'}>Recipe</button>
+
   <header>
     <div class="grid_container">
       <div class="header">
@@ -228,4 +233,46 @@
       </div>
     {/each}
   </div>
+
+
+
+
+
+
+
+{:else if currentPage === 'recipe'}
+<div class="grid_container_recipe">
+  <div class="website_name_recipe">
+    <p>Website Name</p>
+  </div>
+
+  <div class="header_icons">
+    <button on:click={() => currentPage = 'home'}>Home</button>
+  </div>
+
+  <div class="Food_Name">
+    <p>Name of food</p>
+  </div>
+
+  <div class="Image">
+    <img src="/Temp_Image.jpg" alt="Recipe Image" />
+  </div>
+
+  <div class="Reviews">
+    <p>Reviews Here</p>
+  </div>
+
+  <div class="Ingredients">
+    <p>List of ingredients</p>
+  </div>
+
+  <div class="Neutrition">
+    <p>Nutrition here</p>
+  </div>
+
+  <div class="Instructions">
+    <p>Cooking instructions</p>
+  </div>
+</div>
+  {/if}
 </main>
