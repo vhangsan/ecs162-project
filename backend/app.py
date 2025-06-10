@@ -6,6 +6,9 @@ from flask_cors import CORS
 import requests
 import os
 from models import Comment
+from pymongo import MongoClient
+from datetime import datetime
+import json
 
 load_dotenv()
 
@@ -15,6 +18,11 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = secret_key
 
 SPOONACULAR_API_KEY = os.getenv("SPOONACULAR_API_KEY")
+
+# MongoDB setup
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017/")
+client = MongoClient(MONGO_URI)
+db = client.recipe_app
 
 oauth = OAuth(app)
 
@@ -103,7 +111,9 @@ def get_recipes():
             print("No Spoonacular API key found!")
             return jsonify({'error': 'API key not configured'}), 500
 
+        # Get search parameters
         ingredients = request.args.get('ingredients', '')
+        query = request.args.get('query', '')  # Add support for specific recipe search
         cuisine = request.args.get('cuisine', '')
         diet = request.args.get('diet', '')
         intolerances = request.args.get('intolerances', '')
@@ -113,6 +123,7 @@ def get_recipes():
         
         print(f"Recipe search request:")
         print(f"   Ingredients: {ingredients}")
+        print(f"   Query: {query}")
         print(f"   Cuisine: {cuisine}")
         print(f"   Diet: {diet}")
         print(f"   Type: {recipe_type}")
@@ -120,14 +131,14 @@ def get_recipes():
         print(f"   Intolerances: {intolerances}")
         print(f"   Number: {number}")
 
-        if not ingredients:
-            return jsonify({'error': 'No ingredients provided'}), 400
+        # Check if we have either ingredients or query
+        if not ingredients and not query:
+            return jsonify({'error': 'No ingredients or search query provided'}), 400
 
         search_url = 'https://api.spoonacular.com/recipes/complexSearch'
         
         params = {
             'apiKey': SPOONACULAR_API_KEY,
-            'includeIngredients': ingredients,
             'number': number,
             'addRecipeInformation': 'true',
             'fillIngredients': 'true',
@@ -137,6 +148,13 @@ def get_recipes():
             'ranking': '2'
         }
         
+        # Add ingredients or query parameter
+        if ingredients:
+            params['includeIngredients'] = ingredients
+        elif query:
+            params['query'] = query
+        
+        # Add other filters
         if cuisine:
             params['cuisine'] = cuisine
         if diet:
@@ -301,6 +319,229 @@ def create_comment(recipe_id):
         print(f"Error creating comment: {e}")
         return jsonify({'success': False, 'error': 'Failed to create comment'}), 500
 
+# FAVORITES ENDPOINTS
+@app.route('/api/favorites', methods=['POST'])
+def add_favorite():
+    user = session.get('user')
+    if not user:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    try:
+        data = request.get_json()
+        recipe_id = data.get('recipeId')
+        recipe_data = data.get('recipe', {})
+        
+        if not recipe_id:
+            return jsonify({'success': False, 'error': 'Recipe ID is required'}), 400
+        
+        user_id = user['sub']
+        
+        # Check if already favorited
+        existing = db.favorites.find_one({
+            'user_id': user_id, 
+            'recipe_id': recipe_id
+        })
+        
+        if existing:
+            return jsonify({'success': False, 'error': 'Recipe already favorited'}), 400
+        
+        # Add to favorites
+        favorite_doc = {
+            'user_id': user_id,
+            'user_email': user['email'],
+            'recipe_id': recipe_id,
+            'recipe_data': recipe_data,
+            'created_at': datetime.utcnow()
+        }
+        
+        result = db.favorites.insert_one(favorite_doc)
+        print(f"Added favorite: User {user['email']} favorited recipe {recipe_id}")
+        
+        return jsonify({
+            'success': True, 
+            'favorite_id': str(result.inserted_id),
+            'message': 'Recipe added to favorites'
+        })
+        
+    except Exception as e:
+        print(f"Error adding favorite: {e}")
+        return jsonify({'success': False, 'error': 'Failed to add favorite'}), 500
+
+@app.route('/api/favorites/<int:recipe_id>', methods=['DELETE'])  
+def remove_favorite(recipe_id):
+    user = session.get('user')
+    if not user:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    try:
+        user_id = user['sub']
+        
+        # Remove from favorites
+        result = db.favorites.delete_one({
+            'user_id': user_id,
+            'recipe_id': recipe_id
+        })
+        
+        if result.deleted_count == 0:
+            return jsonify({'success': False, 'error': 'Favorite not found'}), 404
+        
+        print(f"Removed favorite: User {user['email']} unfavorited recipe {recipe_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Recipe removed from favorites'
+        })
+        
+    except Exception as e:
+        print(f"Error removing favorite: {e}")
+        return jsonify({'success': False, 'error': 'Failed to remove favorite'}), 500
+
+@app.route('/api/user/favorites', methods=['GET'])
+def get_user_favorites():
+    user = session.get('user')
+    if not user:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    try:
+        user_id = user['sub']
+        
+        # Get user's favorites
+        favorites_cursor = db.favorites.find({
+            'user_id': user_id
+        }).sort('created_at', -1)
+        
+        favorites = []
+        for fav in favorites_cursor:
+            # Ensure we're returning recipe data properly
+            recipe_data = fav.get('recipe_data', {})
+            if recipe_data:
+                # Use recipe_data as the base and add metadata
+                favorite_recipe = dict(recipe_data)
+                favorite_recipe['favorited_at'] = fav['created_at'].isoformat() if fav.get('created_at') else None
+            else:
+                # Fallback if no recipe_data
+                favorite_recipe = {
+                    'id': fav['recipe_id'],
+                    'title': f'Recipe {fav["recipe_id"]}',
+                    'image': '/Temp_Image.jpg',
+                    'calories': 0,
+                    'rating': 3.0,
+                    'cuisines': ['International'],
+                    'favorited_at': fav['created_at'].isoformat() if fav.get('created_at') else None
+                }
+            
+            favorites.append(favorite_recipe)
+        
+        print(f"Retrieved {len(favorites)} favorites for user {user['email']}")
+        
+        return jsonify({
+            'success': True,
+            'favorites': favorites
+        })
+        
+    except Exception as e:
+        print(f"Error getting favorites: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get favorites'}), 500
+
+# REVIEWS ENDPOINTS  
+@app.route('/api/reviews', methods=['POST'])
+def add_review():
+    user = session.get('user')
+    if not user:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    try:
+        data = request.get_json()
+        recipe_id = data.get('recipeId')
+        rating = data.get('rating')
+        review_text = data.get('review', '').strip()
+        recipe_title = data.get('recipeTitle', '')
+        
+        if not recipe_id or not rating:
+            return jsonify({'success': False, 'error': 'Recipe ID and rating are required'}), 400
+        
+        if not (1 <= rating <= 5):
+            return jsonify({'success': False, 'error': 'Rating must be between 1 and 5'}), 400
+        
+        if not review_text:
+            return jsonify({'success': False, 'error': 'Review text is required'}), 400
+        
+        if len(review_text) > 1000:
+            return jsonify({'success': False, 'error': 'Review too long (max 1000 characters)'}), 400
+        
+        user_id = user['sub']
+        
+        # Check if user already reviewed this recipe
+        existing = db.reviews.find_one({
+            'user_id': user_id,
+            'recipe_id': recipe_id
+        })
+        
+        if existing:
+            return jsonify({'success': False, 'error': 'You have already reviewed this recipe'}), 400
+        
+        # Add review
+        review_doc = {
+            'user_id': user_id,
+            'user_email': user['email'],
+            'recipe_id': recipe_id,
+            'recipe_title': recipe_title,
+            'rating': rating,
+            'review': review_text,
+            'created_at': datetime.utcnow()
+        }
+        
+        result = db.reviews.insert_one(review_doc)
+        print(f"Added review: User {user['email']} reviewed recipe {recipe_id} with {rating} stars")
+        
+        return jsonify({
+            'success': True,
+            'review_id': str(result.inserted_id),
+            'message': 'Review added successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error adding review: {e}")
+        return jsonify({'success': False, 'error': 'Failed to add review'}), 500
+
+@app.route('/api/user/reviews', methods=['GET'])
+def get_user_reviews():
+    user = session.get('user')
+    if not user:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    try:
+        user_id = user['sub']
+        
+        # Get user's reviews
+        reviews_cursor = db.reviews.find({
+            'user_id': user_id
+        }).sort('created_at', -1)
+        
+        reviews = []
+        for review in reviews_cursor:
+            review_data = {
+                'id': str(review['_id']),
+                'recipeId': review['recipe_id'],
+                'recipe_title': review.get('recipe_title', ''),
+                'rating': review['rating'],
+                'review': review['review'],
+                'createdAt': review['created_at'].isoformat() if review.get('created_at') else None,
+                'userEmail': review['user_email']
+            }
+            reviews.append(review_data)
+        
+        print(f"Retrieved {len(reviews)} reviews for user {user['email']}")
+        
+        return jsonify({
+            'success': True,
+            'reviews': reviews
+        })
+        
+    except Exception as e:
+        print(f"Error getting reviews: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get reviews'}), 500
+
 @app.route('/health')
 def health_check():
     return jsonify({
@@ -308,7 +549,8 @@ def health_check():
         'dex_configured': True,
         'dex_external_host': DEX_EXTERNAL_HOST,
         'spoonacular_api_key': '✅ Set' if SPOONACULAR_API_KEY else 'Missing',
-        'user_logged_in': bool(session.get('user'))
+        'user_logged_in': bool(session.get('user')),
+        'mongodb_connected': True
     })
 
 @app.route('/debug/auth')
@@ -356,6 +598,7 @@ def serve_frontend(path: str = ""):
 if __name__ == '__main__':
     print("Starting Flask server...")
     print(f"Spoonacular API Key: {'Set' if SPOONACULAR_API_KEY else 'Missing'}")
+    print(f"MongoDB URI: {MONGO_URI}")
     print(f"Dex Configuration:")
     print(f"   Client ID: {DEX_CLIENT_ID}")
     print(f"   External Host: {DEX_EXTERNAL_HOST}")
