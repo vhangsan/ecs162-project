@@ -611,9 +611,9 @@
             {#if showAccountSidebar}
               <div class="dropdown-menu">
                 <div class="user-email">{user.email}</div>
-                <button class="account-btn" on:click={showFavorites}>⭐ My Favorites</button>
-                <button class="account-btn" on:click={showReviews}>📝 My Reviews</button>
-                <button class="logout-btn" on:click={logout}>
+                <button class="favorites-btn link-button" on:click={showFavorites}>⭐ My Favorites</button>
+                <button class="reviews-btn link-button" on:click={showReviews}>📝 My Reviews</button>
+                <button class="logout-btn link-button" on:click={logout}>
                   🚪 Logout
                 </button>
               </div>
