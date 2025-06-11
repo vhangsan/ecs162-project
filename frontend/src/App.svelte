@@ -631,88 +631,11 @@
   {#if currentView === "home"}
     <slot></slot>
   {/if}
+{#if currentView === "home"}
 
-  {#if currentView === "favorites"}
-    <section class="favorites-section">
-      <h2 class="section-title">
-        <span class="title-icon">⭐</span>
-        MY FAVORITES ({userFavorites.length})
-      </h2>
-      {#if userFavorites.length === 0}
-        <p class="empty-message">You have no favorited recipes yet.</p>
-      {:else}
-        <div class="recipes-grid">
-          {#each userFavorites as recipe, index}
-            <div 
-              class="recipe-card clickable"
-              style="animation-delay: {index * 0.1}s"
-              on:click={() => openRecipeModal(recipe)}
-              tabindex="0"
-            >
-              <div class="recipe-image-container">
-                <img 
-                  src={recipe.image} 
-                  alt={recipe.title} 
-                  class="recipe-image"
-                  on:error={handleImageError}
-                />
-                <div class="recipe-overlay">
-                  <button class="quick-view-btn">
-                    <span class="btn-icon">👁️</span>
-                    View Recipe
-                  </button>
-                </div>
-                <button
-                  class="favorite-heart favorited"
-                  on:click|stopPropagation={() => toggleFavorite(recipe)}
-                >
-                  ❤️
-                </button>
-              </div>
-              <div class="recipe-info">
-                <h3 class="recipe-title">{recipe.title.toUpperCase()}</h3>
-                <div class="rating-stars">{renderStars(recipe.rating)}</div>
-                <div class="recipe-meta">
-                  <span class="cuisine">
-                    <span class="meta-icon">🌍</span>
-                    {recipe.cuisines[0]}
-                  </span>
-                  <span class="calories">
-                    <span class="meta-icon">🔥</span>
-                    {recipe.calories} cal
-                  </span>
-                </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
-  {/if}
+  
 
-  {#if currentView === "reviews"}
-    <section class="favorites-section">
-      <h2 class="section-title">
-        <span class="title-icon">📝</span>
-        MY REVIEWS ({userReviews.length})
-      </h2>
-      {#if userReviews.length === 0}
-        <p class="empty-message">You have not written any reviews yet.</p>
-      {:else}
-        <div class="reviews-list">
-          {#each userReviews as review}
-            <div class="review-item">
-              <div class="review-header">
-                <div class="review-rating">{renderStars(review.rating)}</div>
-                <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
-              </div>
-              <p class="review-text">{review.review}</p>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
-  {/if}
+
 
   <!-- HERO SECTION -->
   <section class="hero-section">
@@ -1142,6 +1065,86 @@
  {/if}
 
  <!-- RECIPE MODAL - FULL SCREEN WITH UNIFORM FONTS -->
+
+{:else if currentView === "reviews"}
+    <section class="favorites-section">
+      <h2 class="section-title">
+        <span class="title-icon">📝</span>
+        MY REVIEWS ({userReviews.length})
+      </h2>
+      {#if userReviews.length === 0}
+        <p class="empty-message">You have not written any reviews yet.</p>
+      {:else}
+        <div class="reviews-list">
+          {#each userReviews as review}
+            <div class="review-item">
+              <div class="review-header">
+                <div class="review-rating">{renderStars(review.rating)}</div>
+                <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
+              </div>
+              <p class="review-text">{review.review}</p>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+  {:else if currentView === "favorites"}
+    <section class="favorites-section">
+      <h2 class="section-title">
+        <span class="title-icon">⭐</span>
+        MY FAVORITES ({userFavorites.length})
+      </h2>
+      {#if userFavorites.length === 0}
+        <p class="empty-message">You have no favorited recipes yet.</p>
+      {:else}
+        <div class="recipes-grid">
+          {#each userFavorites as recipe, index}
+            <div 
+              class="recipe-card clickable"
+              style="animation-delay: {index * 0.1}s"
+              on:click={() => openRecipeModal(recipe)}
+              tabindex="0"
+            >
+              <div class="recipe-image-container">
+                <img 
+                  src={recipe.image} 
+                  alt={recipe.title} 
+                  class="recipe-image"
+                  on:error={handleImageError}
+                />
+                <div class="recipe-overlay">
+                  <button class="quick-view-btn">
+                    <span class="btn-icon">👁️</span>
+                    View Recipe
+                  </button>
+                </div>
+                <button
+                  class="favorite-heart favorited"
+                  on:click|stopPropagation={() => toggleFavorite(recipe)}
+                >
+                  ❤️
+                </button>
+              </div>
+              <div class="recipe-info">
+                <h3 class="recipe-title">{recipe.title.toUpperCase()}</h3>
+                <div class="rating-stars">{renderStars(recipe.rating)}</div>
+                <div class="recipe-meta">
+                  <span class="cuisine">
+                    <span class="meta-icon">🌍</span>
+                    {recipe.cuisines[0]}
+                  </span>
+                  <span class="calories">
+                    <span class="meta-icon">🔥</span>
+                    {recipe.calories} cal
+                  </span>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+  {/if}
  {#if showRecipeModal && selectedRecipe}
    <div class="recipe-detail-modal" on:click={closeRecipeModal}>
      <div class="modal-content" on:click|stopPropagation>

@@ -32,8 +32,8 @@ DEX_CLIENT_ID: str = os.getenv("OIDC_CLIENT_ID", "flask-app")
 DEX_CLIENT_NAME: str = os.getenv("OIDC_CLIENT_NAME", DEX_CLIENT_ID)
 DEX_CLIENT_SECRET: str = os.getenv("OIDC_CLIENT_SECRET", "flask-secret")
 
-DEX_INTERNAL_HOST = os.getenv("DEX_INTERNAL_HOST", "http://dex:5556")
-DEX_EXTERNAL_HOST = os.getenv("DEX_EXTERNAL_HOST", "http://localhost:5556")
+DEX_INTERNAL_HOST = "http://dex:5556"
+DEX_EXTERNAL_HOST = "http://localhost:5556"
 
 AUTHORIZATION_ENDPOINT = f"{DEX_EXTERNAL_HOST}/auth"
 TOKEN_ENDPOINT = f"{DEX_INTERNAL_HOST}/token"
