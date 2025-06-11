@@ -1,6 +1,6 @@
 # whisk
 
-This is a full-stack recipe application that allows users to search for recipes, save favorites, and post their feedback. The application uses Flask for the backend, Svelte for the fronten
+This is a full-stack recipe application that allows users to search for recipes, save favorites, and post their feedback. The application uses Flask for the backend and Svelte for the frontend.
 
 ## GitHub Repository
 https://github.com/vhangsan/ecs162-project
