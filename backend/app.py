@@ -9,6 +9,7 @@ from models import Comment
 from pymongo import MongoClient
 from datetime import datetime
 import json
+from difflib import SequenceMatcher
 
 load_dotenv()
 
@@ -105,6 +106,14 @@ def get_user_profile():
 
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 
+# Implement fuzzy search to handle misspellings and variations
+def fuzzy_match(ingredient, recipe_ingredients, threshold=0.7):
+    for recipe_ingredient in recipe_ingredients:
+        similarity = SequenceMatcher(None, ingredient, recipe_ingredient).ratio()
+        if similarity >= threshold or ingredient in recipe_ingredient:
+            return True
+    return False
+
 @app.route("/recipes", methods=["GET"])
 def get_recipes():
     try:
@@ -147,7 +156,7 @@ def get_recipes():
             'addRecipeNutrition': 'true',
             'instructionsRequired': 'true',
             'sort': 'max-used-ingredients',
-            'ranking': '2'
+            'ranking': '1'
         }
         
         # Add ingredients or query parameter
@@ -179,6 +188,25 @@ def get_recipes():
             data = response.json()
             recipes = data.get('results', [])
             print(f"📋 Found {len(recipes)} recipes")
+
+            if ingredients:
+                requested_ingredients = set(ingredient.strip().lower() for ingredient in ingredients.split(','))
+
+                filtered_recipes = []
+                for recipe in recipes:
+                    recipe_ingredients = set(
+                        ingred['name'].strip().lower()
+                        for ingred in recipe.get('extendedIngredients', [])
+                    )
+                    all_matched = all(
+                        fuzzy_match(req, recipe_ingredients)
+                        for req in requested_ingredients
+                    )
+                    if all_matched:
+                        filtered_recipes.append(recipe)
+
+                recipes = filtered_recipes
+                print(f"🔎 After fuzzy ingredient filtering, {len(recipes)} recipes remain")
             
             if len(recipes) == 0:
                 print("No recipes found")
