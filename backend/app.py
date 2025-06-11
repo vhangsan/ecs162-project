@@ -1,3 +1,5 @@
+from pytest import Session
+from fastapi import Depends
 from flask import Flask, redirect, session, request, jsonify, send_from_directory
 from authlib.integrations.flask_client import OAuth
 from authlib.common.security import generate_token
@@ -542,6 +544,25 @@ def get_user_reviews():
     except Exception as e:
         print(f"Error getting reviews: {e}")
         return jsonify({'success': False, 'error': 'Failed to get reviews'}), 500
+
+@app.get("/api/users/me/reviews")
+def get_my_reviews(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_comments = db.query(Comment).filter(Comment.user_id == current_user.id).all()
+    return {
+        "success": True,
+        "reviews": [
+            {
+                "id": comment.id,
+                "recipe": {
+                    "id": comment.recipe.id,
+                    "title": comment.recipe.title
+                },
+                "text": comment.text
+            }
+            for comment in user_comments
+        ]
+    }
+
 
 @app.route('/health')
 def health_check():

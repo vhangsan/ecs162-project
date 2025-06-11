@@ -64,6 +64,24 @@
     loadFilterOptions();
   });
 
+  let myReviews: any[] = [];
+  async function loadMyReviews() {
+    try {
+      const response = await fetch(`${BACKEND_BASE}/api/users/me/reviews`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        myReviews = data.reviews;
+      } else {
+        console.error('Failed to load your reviews');
+      }
+    } catch (err) {
+      console.error('Error loading your reviews', err);
+    }
+  }
+
   async function loadFilterOptions() {
     try {
       const [cuisinesRes, dietsRes, intolerancesRes, mealTypesRes] = await Promise.all([
@@ -597,9 +615,9 @@
   <!-- HEADER -->
   <header class="figma-header">
     <div class="header-content">
-      <h1 class="website-title">
-        🍽️ RECIPE FINDER
-      </h1>
+      <button class="website-title" on:click={showHome}>
+        🍽️ whisk
+      </button>
       <div class="header-nav">
         <button class="nav-button" on:click={showHome}>
           Home
@@ -727,10 +745,10 @@
   <section class="search-section">
     <div class="search-tabs">
       <button class="tab-button {activeTab === 'ingredients' ? 'active' : ''}" on:click={() => switchTab('ingredients')}>
-        USE MY INGREDIENTS
+        Use My Ingredients
       </button>
       <button class="tab-button {activeTab === 'specific' ? 'active' : ''}" on:click={() => switchTab('specific')}>
-        FIND SPECIFIC RECIPE
+        Find Specific Recipe
       </button>
     </div>
 
@@ -1198,20 +1216,19 @@
            {/if}
            
            <!-- Display User's Reviews -->
-           {#if userReviews.length > 0}
-             <div class="user-reviews">
-               <h3>Your Reviews</h3>
-               {#each userReviews.filter(review => review.recipeId === selectedRecipe.id) as review}
-                 <div class="review-item">
-                   <div class="review-header">
-                     <div class="review-rating">{renderStars(review.rating)}</div>
-                     <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
-                   </div>
-                   <p class="review-text">{review.review}</p>
-                 </div>
-               {/each}
-             </div>
-           {/if}
+           {#if accountView === 'reviews'}
+              <h2>Your Reviews</h2>
+              {#if myReviews.length > 0}
+                {#each myReviews as review (review.id)}
+                  <div class="review">
+                    <h3>{review.recipe.title}</h3>
+                    <p>{review.text}</p>
+                  </div>
+                {/each}
+              {:else}
+                <p>You have not written any reviews yet.</p>
+              {/if}
+            {/if}
            
            <!-- Comments Section -->
            <Comments recipeId={selectedRecipe.id} {user} backendBase={BACKEND_BASE} />
