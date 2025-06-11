@@ -1,5 +1,7 @@
 .env*
 .DS_Store
-# ── Python build artefacts ──
+
+.pycache
+__pycache__
 __pycache__/
-*.py[cod]
+*.pyc
