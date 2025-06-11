@@ -79,6 +79,8 @@ body {
  letter-spacing: -0.5px;
  display: flex;
  align-items: center;
+ cursor: pointer;
+ border: none;
 }
 
 .header-nav {
