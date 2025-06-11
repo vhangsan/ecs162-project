@@ -90,6 +90,7 @@
   async function checkAuthStatus() {
     try {
       const response = await fetch(`${BACKEND_BASE}/api/user/profile`, {
+        method: 'GET',
         credentials: 'include'
       });
       if (response.ok) {

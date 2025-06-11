@@ -81,6 +81,7 @@ def authorize():
         nonce_val = session.get("nonce")
         user_info = dex.parse_id_token(token, nonce=nonce_val)
         session["user"] = user_info
+        session.permanent = True
         print(f"User authorized: {user_info.get('email', 'unknown')}")
         return redirect("http://localhost:5173")
     except Exception as e:
