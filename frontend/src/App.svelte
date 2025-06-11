@@ -59,9 +59,42 @@
 
   const BACKEND_BASE = import.meta.env.VITE_BACKEND_BASE || "http://localhost:8000";
 
+  function saveSearchState() {
+    localStorage.setItem('searchState', JSON.stringify({
+      activeTab,
+      ingredients,
+      ingredientList,
+      recipes,
+      specificRecipeQuery,
+      specificRecipeResults,
+      selectedMealType,
+      selectedTime,
+      selectedDiet,
+      selectedIntolerances,
+      selectedCuisine
+    }));
+  }
+  function loadSearchState() {
+    const savedState = localStorage.getItem('searchState');
+    if (savedState) {
+      const state = JSON.parse(savedState);
+      activeTab = state.activeTab || "ingredients";
+      ingredients = state.ingredients || "";
+      ingredientList = state.ingredientList || [];
+      recipes = state.recipes || [];
+      specificRecipeQuery = state.specificRecipeQuery || "";
+      specificRecipeResults = state.specificRecipeResults || [];
+      selectedMealType = state.selectedMealType || "";
+      selectedTime = state.selectedTime || "";
+      selectedDiet = state.selectedDiet || "";
+      selectedIntolerances = state.selectedIntolerances || [];
+      selectedCuisine = state.selectedCuisine || "";
+    }
+  }
   onMount(() => {
     checkAuthStatus();
     loadFilterOptions();
+    loadSearchState();
   });
 
   let myReviews: any[] = [];
@@ -193,9 +226,11 @@
 
   function addIngredient() {
     const trimmed = ingredients.trim().toLowerCase();
+    saveSearchState();
     if (trimmed && !ingredientList.includes(trimmed)) {
       ingredientList = [...ingredientList, trimmed];
       ingredients = "";
+      saveSearchState();
     }
   }
 
@@ -205,162 +240,167 @@
       searchRecipes();
     } else {
       recipes = [];
+        saveSearchState();
     }
   }
 
-  async function searchRecipes() {
-    loading = true;
-    searchError = "";
-    
-    try {
-      let searchTerm = "";
-      if (ingredientList.length > 0) {
-        searchTerm = ingredientList.join(',');
-      } else if (ingredients.trim()) {
-        searchTerm = ingredients.trim().toLowerCase();
-      } else {
-        recipes = [];
-        loading = false;
-        return;
-      }
-
-      const params = new URLSearchParams({
-        ingredients: searchTerm
-      });
-
-      if (selectedCuisine) params.append('cuisine', selectedCuisine);
-      if (selectedDiet) params.append('diet', selectedDiet);
-      if (selectedIntolerances.length > 0) params.append('intolerances', selectedIntolerances.join(','));
-      if (selectedTime) params.append('maxReadyTime', selectedTime);
-      if (selectedMealType) params.append('type', selectedMealType);
-
-      params.append('number', '6');
-
-      const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
-      const res = await fetch(url);
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-
-      const recipeResults = await res.json();
-
-      if (!Array.isArray(recipeResults)) {
-        searchError = recipeResults.error || "Invalid response format";
-        recipes = [];
-        loading = false;
-        return;
-      }
-
-      if (recipeResults.length === 0) {
-        searchError = "No recipes found for these ingredients. Try different ingredients or remove some filters.";
-        recipes = [];
-        loading = false;
-        return;
-      }
-
-      recipes = recipeResults.map((r: any) => ({
-        id: r.id,
-        title: r.title || `Recipe ${r.id}`,
-        image: r.image || '/Temp_Image.jpg', 
-        calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
-        rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
-        cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
-        readyInMinutes: r.readyInMinutes || 30,
-        servings: r.servings || 1,
-        vegetarian: r.vegetarian || false,
-        vegan: r.vegan || false,
-        glutenFree: r.glutenFree || false,
-        dairyFree: r.dairyFree || false,
-        dishTypes: r.dishTypes || ["main course"],
-        extendedIngredients: r.extendedIngredients || [],
-        analyzedInstructions: r.analyzedInstructions || [],
-        nutrition: r.nutrition || {
-          nutrients: [
-            { name: "Calories", amount: r.calories || 0, unit: "kcal" },
-            { name: "Fat", amount: 0, unit: "g" },
-            { name: "Carbohydrates", amount: 0, unit: "g" },
-            { name: "Protein", amount: 0, unit: "g" }
-          ]
-        }
-      }));
-      
-    } catch (error) {
-      console.error("Error fetching recipes:", error);
-      searchError = `Failed to fetch recipes: ${(error as Error).message}`;
+async function searchRecipes() {
+  loading = true;
+  searchError = "";
+  
+  try {
+    let searchTerm = "";
+    if (ingredientList.length > 0) {
+      searchTerm = ingredientList.join(',');
+    } else if (ingredients.trim()) {
+      searchTerm = ingredients.trim().toLowerCase();
+    } else {
       recipes = [];
-    } finally {
       loading = false;
+      return;
     }
+
+    const params = new URLSearchParams({
+      ingredients: searchTerm
+    });
+
+    if (selectedCuisine) params.append('cuisine', selectedCuisine);
+    if (selectedDiet) params.append('diet', selectedDiet);
+    if (selectedIntolerances.length > 0) params.append('intolerances', selectedIntolerances.join(','));
+    if (selectedTime) params.append('maxReadyTime', selectedTime);
+    if (selectedMealType) params.append('type', selectedMealType);
+
+    params.append('number', '6');
+
+    const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const recipeResults = await res.json();
+
+    if (!Array.isArray(recipeResults)) {
+      searchError = recipeResults.error || "Invalid response format";
+      recipes = [];
+      loading = false;
+      return;
+    }
+
+    if (recipeResults.length === 0) {
+      searchError = "No recipes found for these ingredients. Try different ingredients or remove some filters.";
+      recipes = [];
+      loading = false;
+      return;
+    }
+
+    recipes = recipeResults.map((r: any) => ({
+      id: r.id,
+      title: r.title || `Recipe ${r.id}`,
+      image: r.image || '/Temp_Image.jpg', 
+      calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
+      rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
+      cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
+      readyInMinutes: r.readyInMinutes || 30,
+      servings: r.servings || 1,
+      vegetarian: r.vegetarian || false,
+      vegan: r.vegan || false,
+      glutenFree: r.glutenFree || false,
+      dairyFree: r.dairyFree || false,
+      dishTypes: r.dishTypes || ["main course"],
+      extendedIngredients: r.extendedIngredients || [],
+      analyzedInstructions: r.analyzedInstructions || [],
+      nutrition: r.nutrition || {
+        nutrients: [
+          { name: "Calories", amount: r.calories || 0, unit: "kcal" },
+          { name: "Fat", amount: 0, unit: "g" },
+          { name: "Carbohydrates", amount: 0, unit: "g" },
+          { name: "Protein", amount: 0, unit: "g" }
+        ]
+      }
+    }));
+    
+    saveSearchState();
+    
+  } catch (error) {
+    console.error("Error fetching recipes:", error);
+    searchError = `Failed to fetch recipes: ${(error as Error).message}`;
+    recipes = [];
+  } finally {
+    loading = false;
   }
+}
 
-  async function searchSpecificRecipe() {
-    if (!specificRecipeQuery.trim()) return;
+async function searchSpecificRecipe() {
+  if (!specificRecipeQuery.trim()) return;
+  
+  specificRecipeLoading = true;
+  searchError = "";
+  
+  try {
+    const params = new URLSearchParams({
+      query: specificRecipeQuery.trim(),
+      number: '6'
+    });
+
+    const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
+    const res = await fetch(url);
     
-    specificRecipeLoading = true;
-    searchError = "";
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const results = await res.json();
     
-    try {
-      const params = new URLSearchParams({
-        query: specificRecipeQuery.trim(),
-        number: '6'
-      });
-
-      const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
-      const res = await fetch(url);
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-
-      const results = await res.json();
-      
-      if (!Array.isArray(results)) {
-        searchError = results.error || "Invalid response format";
-        specificRecipeResults = [];
-        return;
-      }
-
-      if (results.length === 0) {
-        searchError = "No recipes found for this search. Try different keywords.";
-        specificRecipeResults = [];
-        return;
-      }
-
-      specificRecipeResults = results.map((r: any) => ({
-        id: r.id,
-        title: r.title || `Recipe ${r.id}`,
-        image: r.image || '/Temp_Image.jpg',
-        calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
-        rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
-        cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
-        readyInMinutes: r.readyInMinutes || 30,
-        servings: r.servings || 1,
-        vegetarian: r.vegetarian || false,
-        vegan: r.vegan || false,
-        glutenFree: r.glutenFree || false,
-        dairyFree: r.dairyFree || false,
-        dishTypes: r.dishTypes || ["main course"],
-        extendedIngredients: r.extendedIngredients || [],
-        analyzedInstructions: r.analyzedInstructions || [],
-        nutrition: r.nutrition || {
-          nutrients: [
-            { name: "Calories", amount: r.calories || 0, unit: "kcal" },
-            { name: "Fat", amount: 0, unit: "g" },
-            { name: "Carbohydrates", amount: 0, unit: "g" },
-            { name: "Protein", amount: 0, unit: "g" }
-          ]
-        }
-      }));
-      
-    } catch (error) {
-      console.error("Error searching specific recipes:", error);
-      searchError = `Failed to search recipes: ${(error as Error).message}`;
+    if (!Array.isArray(results)) {
+      searchError = results.error || "Invalid response format";
       specificRecipeResults = [];
-    } finally {
-      specificRecipeLoading = false;
+      return;
     }
+
+    if (results.length === 0) {
+      searchError = "No recipes found for this search. Try different keywords.";
+      specificRecipeResults = [];
+      return;
+    }
+
+    specificRecipeResults = results.map((r: any) => ({
+      id: r.id,
+      title: r.title || `Recipe ${r.id}`,
+      image: r.image || '/Temp_Image.jpg',
+      calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
+      rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
+      cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
+      readyInMinutes: r.readyInMinutes || 30,
+      servings: r.servings || 1,
+      vegetarian: r.vegetarian || false,
+      vegan: r.vegan || false,
+      glutenFree: r.glutenFree || false,
+      dairyFree: r.dairyFree || false,
+      dishTypes: r.dishTypes || ["main course"],
+      extendedIngredients: r.extendedIngredients || [],
+      analyzedInstructions: r.analyzedInstructions || [],
+      nutrition: r.nutrition || {
+        nutrients: [
+          { name: "Calories", amount: r.calories || 0, unit: "kcal" },
+          { name: "Fat", amount: 0, unit: "g" },
+          { name: "Carbohydrates", amount: 0, unit: "g" },
+          { name: "Protein", amount: 0, unit: "g" }
+        ]
+      }
+    }));
+    
+    saveSearchState();
+    
+  } catch (error) {
+    console.error("Error searching specific recipes:", error);
+    searchError = `Failed to search recipes: ${(error as Error).message}`;
+    specificRecipeResults = [];
+  } finally {
+    specificRecipeLoading = false;
   }
+}
 
   function switchTab(tab: string) {
     activeTab = tab;
@@ -373,6 +413,7 @@
       ingredients = "";
     }
     searchError = "";
+    saveSearchState();
   }
 
   async function toggleFavorite(recipe: any) {
@@ -508,6 +549,7 @@
 
   function toggleMealType(mealType: string) {
     selectedMealType = selectedMealType === mealType ? "" : mealType;
+    saveSearchState();
     reapplyFilters();
   }
 
@@ -524,6 +566,7 @@
         break;
     }
     activeDropdown = "";
+    saveSearchState();
     reapplyFilters();
   }
 
@@ -533,6 +576,7 @@
     } else {
       selectedIntolerances = [...selectedIntolerances, intolerance];
     }
+    saveSearchState();
     reapplyFilters();
   }
 
@@ -543,6 +587,7 @@
     selectedIntolerances = [];
     selectedCuisine = "";
     activeDropdown = "";
+    saveSearchState();
     reapplyFilters();
   }
 
@@ -650,88 +695,7 @@
   {#if currentView === "home"}
     <slot></slot>
   {/if}
-
-  {#if currentView === "favorites"}
-    <section class="favorites-section">
-      <h2 class="section-title">
-        <span class="title-icon">⭐</span>
-        MY FAVORITES ({userFavorites.length})
-      </h2>
-      {#if userFavorites.length === 0}
-        <p class="empty-message">You have no favorited recipes yet.</p>
-      {:else}
-        <div class="recipes-grid">
-          {#each userFavorites as recipe, index}
-            <div 
-              class="recipe-card clickable"
-              style="animation-delay: {index * 0.1}s"
-              on:click={() => openRecipeModal(recipe)}
-              tabindex="0"
-            >
-              <div class="recipe-image-container">
-                <img 
-                  src={recipe.image} 
-                  alt={recipe.title} 
-                  class="recipe-image"
-                  on:error={handleImageError}
-                />
-                <div class="recipe-overlay">
-                  <button class="quick-view-btn">
-                    <span class="btn-icon">👁️</span>
-                    View Recipe
-                  </button>
-                </div>
-                <button
-                  class="favorite-heart favorited"
-                  on:click|stopPropagation={() => toggleFavorite(recipe)}
-                >
-                  ❤️
-                </button>
-              </div>
-              <div class="recipe-info">
-                <h3 class="recipe-title">{recipe.title.toUpperCase()}</h3>
-                <div class="rating-stars">{renderStars(recipe.rating)}</div>
-                <div class="recipe-meta">
-                  <span class="cuisine">
-                    <span class="meta-icon">🌍</span>
-                    {recipe.cuisines[0]}
-                  </span>
-                  <span class="calories">
-                    <span class="meta-icon">🔥</span>
-                    {recipe.calories} cal
-                  </span>
-                </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
-  {/if}
-
-  {#if currentView === "reviews"}
-    <section class="favorites-section">
-      <h2 class="section-title">
-        <span class="title-icon">📝</span>
-        MY REVIEWS ({userReviews.length})
-      </h2>
-      {#if userReviews.length === 0}
-        <p class="empty-message">You have not written any reviews yet.</p>
-      {:else}
-        <div class="reviews-list">
-          {#each userReviews as review}
-            <div class="review-item">
-              <div class="review-header">
-                <div class="review-rating">{renderStars(review.rating)}</div>
-                <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
-              </div>
-              <p class="review-text">{review.review}</p>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
-  {/if}
+{#if currentView === "home"}
 
   <!-- HERO SECTION -->
   <section class="hero-section">
@@ -1070,6 +1034,86 @@
  {/if}
 
  <!-- RECIPE MODAL - FULL SCREEN WITH UNIFORM FONTS -->
+
+{:else if currentView === "reviews"}
+    <section class="favorites-section">
+      <h2 class="section-title">
+        <span class="title-icon">📝</span>
+        MY REVIEWS ({userReviews.length})
+      </h2>
+      {#if userReviews.length === 0}
+        <p class="empty-message">You have not written any reviews yet.</p>
+      {:else}
+        <div class="reviews-list">
+          {#each userReviews as review}
+            <div class="review-item">
+              <div class="review-header">
+                <div class="review-rating">{renderStars(review.rating)}</div>
+                <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
+              </div>
+              <p class="review-text">{review.review}</p>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+  {:else if currentView === "favorites"}
+    <section class="favorites-section">
+      <h2 class="section-title">
+        <span class="title-icon">⭐</span>
+        MY FAVORITES ({userFavorites.length})
+      </h2>
+      {#if userFavorites.length === 0}
+        <p class="empty-message">You have no favorited recipes yet.</p>
+      {:else}
+        <div class="recipes-grid">
+          {#each userFavorites as recipe, index}
+            <div 
+              class="recipe-card clickable"
+              style="animation-delay: {index * 0.1}s"
+              on:click={() => openRecipeModal(recipe)}
+              tabindex="0"
+            >
+              <div class="recipe-image-container">
+                <img 
+                  src={recipe.image} 
+                  alt={recipe.title} 
+                  class="recipe-image"
+                  on:error={handleImageError}
+                />
+                <div class="recipe-overlay">
+                  <button class="quick-view-btn">
+                    <span class="btn-icon">👁️</span>
+                    View Recipe
+                  </button>
+                </div>
+                <button
+                  class="favorite-heart favorited"
+                  on:click|stopPropagation={() => toggleFavorite(recipe)}
+                >
+                  ❤️
+                </button>
+              </div>
+              <div class="recipe-info">
+                <h3 class="recipe-title">{recipe.title.toUpperCase()}</h3>
+                <div class="rating-stars">{renderStars(recipe.rating)}</div>
+                <div class="recipe-meta">
+                  <span class="cuisine">
+                    <span class="meta-icon">🌍</span>
+                    {recipe.cuisines[0]}
+                  </span>
+                  <span class="calories">
+                    <span class="meta-icon">🔥</span>
+                    {recipe.calories} cal
+                  </span>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+  {/if}
  {#if showRecipeModal && selectedRecipe}
    <div class="recipe-detail-modal" on:click={closeRecipeModal}>
      <div class="modal-content" on:click|stopPropagation>
