@@ -97,6 +97,24 @@
     loadSearchState();
   });
 
+  let myReviews: any[] = [];
+  async function loadMyReviews() {
+    try {
+      const response = await fetch(`${BACKEND_BASE}/api/users/me/reviews`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        myReviews = data.reviews;
+      } else {
+        console.error('Failed to load your reviews');
+      }
+    } catch (err) {
+      console.error('Error loading your reviews', err);
+    }
+  }
+
   async function loadFilterOptions() {
     try {
       const [cuisinesRes, dietsRes, intolerancesRes, mealTypesRes] = await Promise.all([
@@ -123,6 +141,7 @@
   async function checkAuthStatus() {
     try {
       const response = await fetch(`${BACKEND_BASE}/api/user/profile`, {
+        method: 'GET',
         credentials: 'include'
       });
       if (response.ok) {
@@ -641,9 +660,9 @@ async function searchSpecificRecipe() {
   <!-- HEADER -->
   <header class="figma-header">
     <div class="header-content">
-      <h1 class="website-title">
-        🍽️ RECIPE FINDER
-      </h1>
+      <button class="website-title" on:click={showHome}>
+        🍽️ whisk
+      </button>
       <div class="header-nav">
         <button class="nav-button" on:click={showHome}>
           Home
@@ -656,9 +675,9 @@ async function searchSpecificRecipe() {
             {#if showAccountSidebar}
               <div class="dropdown-menu">
                 <div class="user-email">{user.email}</div>
-                <button class="account-btn" on:click={showFavorites}>⭐ My Favorites</button>
-                <button class="account-btn" on:click={showReviews}>📝 My Reviews</button>
-                <button class="logout-btn" on:click={logout}>
+                <button class="favorites-btn link-button" on:click={showFavorites}>⭐ My Favorites</button>
+                <button class="reviews-btn link-button" on:click={showReviews}>📝 My Reviews</button>
+                <button class="logout-btn link-button" on:click={logout}>
                   🚪 Logout
                 </button>
               </div>
@@ -690,10 +709,10 @@ async function searchSpecificRecipe() {
   <section class="search-section">
     <div class="search-tabs">
       <button class="tab-button {activeTab === 'ingredients' ? 'active' : ''}" on:click={() => switchTab('ingredients')}>
-        USE MY INGREDIENTS
+        Use My Ingredients
       </button>
       <button class="tab-button {activeTab === 'specific' ? 'active' : ''}" on:click={() => switchTab('specific')}>
-        FIND SPECIFIC RECIPE
+        Find Specific Recipe
       </button>
     </div>
 
@@ -788,97 +807,6 @@ async function searchSpecificRecipe() {
       </div>
     {/if}
   </section>
-
-  <!-- STUDENT FAVORITES -->
-  {#if ((activeTab === 'ingredients' && ingredientList.length === 0 && recipes.length === 0) || 
-        (activeTab === 'specific' && !specificRecipeQuery.trim() && specificRecipeResults.length === 0)) && 
-       !loading && !specificRecipeLoading}
-    <section class="favorites-section">
-      <h2 class="section-title">
-        <span class="title-icon">⭐</span>
-        STUDENT FAVORITES
-      </h2>
-      <div class="favorites-grid">
-        <div class="recipe-card">
-          <div class="recipe-image-container">
-            <img src="/Temp_Image.jpg" alt="Pad Thai" class="recipe-image" />
-            <div class="recipe-overlay">
-              <button class="quick-view-btn">
-                <span class="btn-icon">👁️</span>
-                Quick View
-              </button>
-            </div>
-          </div>
-          <div class="recipe-info">
-            <h3 class="recipe-title">PAD THAI</h3>
-            <div class="rating-stars">★★★★★</div>
-            <div class="recipe-meta">
-              <span class="cuisine">
-                <span class="meta-icon">🌏</span>
-                Thai
-              </span>
-              <span class="calories">
-                <span class="meta-icon">🔥</span>
-                650 cal
-              </span>
-            </div>
-            <div class="dietary-badge vegan">V</div>
-          </div>
-        </div>
-        <div class="recipe-card">
-          <div class="recipe-image-container">
-            <img src="/Temp_Image.jpg" alt="Burger Bowl" class="recipe-image" />
-            <div class="recipe-overlay">
-              <button class="quick-view-btn">
-                <span class="btn-icon">👁️</span>
-                Quick View
-              </button>
-            </div>
-          </div>
-          <div class="recipe-info">
-            <h3 class="recipe-title">BURGER BOWL</h3>
-            <div class="rating-stars">★★★★☆</div>
-            <div class="recipe-meta">
-              <span class="cuisine">
-                <span class="meta-icon">🇺🇸</span>
-                American
-              </span>
-              <span class="calories">
-                <span class="meta-icon">🔥</span>
-                598 cal
-              </span>
-            </div>
-          </div>
-        </div>
-        <div class="recipe-card">
-          <div class="recipe-image-container">
-            <img src="/Temp_Image.jpg" alt="Banana Bread" class="recipe-image" />
-            <div class="recipe-overlay">
-              <button class="quick-view-btn">
-                <span class="btn-icon">👁️</span>
-                Quick View
-              </button>
-            </div>
-          </div>
-          <div class="recipe-info">
-            <h3 class="recipe-title">BANANA BREAD</h3>
-            <div class="rating-stars">★★★★★</div>
-            <div class="recipe-meta">
-              <span class="cuisine">
-                <span class="meta-icon">🍞</span>
-                Baked Good
-              </span>
-              <span class="calories">
-                <span class="meta-icon">🔥</span>
-                235 cal
-              </span>
-            </div>
-            <div class="dietary-badge gluten-free">GF</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  {/if}
 
   {#if ingredientList.length > 0 && activeTab === 'ingredients'}
     <section class="filters-section">
@@ -1332,20 +1260,19 @@ async function searchSpecificRecipe() {
            {/if}
            
            <!-- Display User's Reviews -->
-           {#if userReviews.length > 0}
-             <div class="user-reviews">
-               <h3>Your Reviews</h3>
-               {#each userReviews.filter(review => review.recipeId === selectedRecipe.id) as review}
-                 <div class="review-item">
-                   <div class="review-header">
-                     <div class="review-rating">{renderStars(review.rating)}</div>
-                     <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
-                   </div>
-                   <p class="review-text">{review.review}</p>
-                 </div>
-               {/each}
-             </div>
-           {/if}
+           {#if accountView === 'reviews'}
+              <h2>Your Reviews</h2>
+              {#if myReviews.length > 0}
+                {#each myReviews as review (review.id)}
+                  <div class="review">
+                    <h3>{review.recipe.title}</h3>
+                    <p>{review.text}</p>
+                  </div>
+                {/each}
+              {:else}
+                <p>You have not written any reviews yet.</p>
+              {/if}
+            {/if}
            
            <!-- Comments Section -->
            <Comments recipeId={selectedRecipe.id} {user} backendBase={BACKEND_BASE} />

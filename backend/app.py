@@ -1,3 +1,5 @@
+from pytest import Session
+from fastapi import Depends
 from flask import Flask, redirect, session, request, jsonify, send_from_directory
 from authlib.integrations.flask_client import OAuth
 from authlib.common.security import generate_token
@@ -81,6 +83,7 @@ def authorize():
         nonce_val = session.get("nonce")
         user_info = dex.parse_id_token(token, nonce=nonce_val)
         session["user"] = user_info
+        session.permanent = True
         print(f"User authorized: {user_info.get('email', 'unknown')}")
         return redirect("http://localhost:5173")
     except Exception as e:
@@ -119,7 +122,8 @@ def get_recipes():
         intolerances = request.args.get('intolerances', '')
         max_ready_time = request.args.get('maxReadyTime', '')
         recipe_type = request.args.get('type', '')
-        number = request.args.get('number', '6')
+        user_requested_number = int(request.args.get('number', '6'))
+        fetch_limit = 50
         
         print(f"Recipe search request:")
         print(f"   Ingredients: {ingredients}")
@@ -129,7 +133,7 @@ def get_recipes():
         print(f"   Type: {recipe_type}")
         print(f"   Max time: {max_ready_time}")
         print(f"   Intolerances: {intolerances}")
-        print(f"   Number: {number}")
+        print(f"   Number: {user_requested_number}")
 
         # Check if we have either ingredients or query
         if not ingredients and not query:
@@ -139,7 +143,7 @@ def get_recipes():
         
         params = {
             'apiKey': SPOONACULAR_API_KEY,
-            'number': number,
+            'number': fetch_limit,
             'addRecipeInformation': 'true',
             'fillIngredients': 'true',
             'addRecipeNutrition': 'true',
@@ -176,7 +180,6 @@ def get_recipes():
         if response.status_code == 200:
             data = response.json()
             recipes = data.get('results', [])
-            
             print(f"📋 Found {len(recipes)} recipes")
             
             if len(recipes) == 0:
@@ -206,7 +209,7 @@ def get_recipes():
                     'image': image_url,
                     'calories': int(calories) if calories else recipe.get('calories', 0),
                     'spoonacularScore': recipe.get('spoonacularScore', 60),
-                    'cuisines': recipe.get('cuisines', ['International']),
+                    'cuisines': recipe['cuisines'] if recipe.get('cuisines') else [],
                     'readyInMinutes': recipe.get('readyInMinutes', 30),
                     'servings': recipe.get('servings', 4),
                     'vegetarian': recipe.get('vegetarian', False),
@@ -541,6 +544,25 @@ def get_user_reviews():
     except Exception as e:
         print(f"Error getting reviews: {e}")
         return jsonify({'success': False, 'error': 'Failed to get reviews'}), 500
+
+@app.get("/api/users/me/reviews")
+def get_my_reviews(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_comments = db.query(Comment).filter(Comment.user_id == current_user.id).all()
+    return {
+        "success": True,
+        "reviews": [
+            {
+                "id": comment.id,
+                "recipe": {
+                    "id": comment.recipe.id,
+                    "title": comment.recipe.title
+                },
+                "text": comment.text
+            }
+            for comment in user_comments
+        ]
+    }
+
 
 @app.route('/health')
 def health_check():

@@ -79,6 +79,8 @@ body {
  letter-spacing: -0.5px;
  display: flex;
  align-items: center;
+ cursor: pointer;
+ border: none;
 }
 
 .header-nav {
@@ -142,6 +144,17 @@ body {
  z-index: 100;
  min-width: 200px;
  backdrop-filter: blur(10px);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .user-email {
