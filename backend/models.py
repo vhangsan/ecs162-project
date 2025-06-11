@@ -3,18 +3,19 @@ from datetime import datetime
 from bson.objectid import ObjectId
 import os
 
-# MongoDB connection
+# MongoDB connection setup
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://mongo:27017/mydatabase')
 client = MongoClient(MONGO_URI)
 db = client.mydatabase
 
-# Collections
+# Defines collections for recipes and comments
 comments_collection = db.comments
 
 class Comment:
+
+    # Create a new comment
     @staticmethod
     def create_comment(recipe_id, user_id, user_email, content):
-        """Create a new comment"""
         comment = {
             'recipe_id': int(recipe_id),
             'user_id': user_id,
@@ -26,12 +27,12 @@ class Comment:
         result = comments_collection.insert_one(comment)
         return str(result.inserted_id)
     
+    # Get all comments for a specific recipe
     @staticmethod
     def get_comments_by_recipe(recipe_id):
-        """Get all comments for a specific recipe"""
         comments = comments_collection.find({
             'recipe_id': int(recipe_id)
-        }).sort('created_at', -1)  # Most recent first
+        }).sort('created_at', -1)
         
         # Convert ObjectId to string for JSON serialization
         comment_list = []
@@ -43,13 +44,13 @@ class Comment:
         
         return comment_list
     
+    # Update a comment (only by the original user who created it)
     @staticmethod
     def update_comment(comment_id, user_id, content):
-        """Update a comment (only by the original author)"""
         result = comments_collection.update_one(
             {
                 '_id': ObjectId(comment_id),
-                'user_id': user_id  # Ensure user owns the comment
+                'user_id': user_id
             },
             {
                 '$set': {
@@ -60,11 +61,11 @@ class Comment:
         )
         return result.modified_count > 0
     
+    # Delete a comment (only by the original user)
     @staticmethod
     def delete_comment(comment_id, user_id):
-        """Delete a comment (only by the original author)"""
         result = comments_collection.delete_one({
             '_id': ObjectId(comment_id),
-            'user_id': user_id  # Ensure user owns the comment
+            'user_id': user_id
         })
         return result.deleted_count > 0

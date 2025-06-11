@@ -13,14 +13,16 @@ from difflib import SequenceMatcher
 
 load_dotenv()
 
+# Ensures secret key for Flask sessions
 secret_key = os.getenv("FLASK_SECRET_KEY") or os.urandom(24)
 
+# Initialize Flask app
 app = Flask(__name__)
 app.config["SECRET_KEY"] = secret_key
 
 SPOONACULAR_API_KEY = os.getenv("SPOONACULAR_API_KEY")
 
-# MongoDB setup
+# MongoDB connection setup
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017/")
 client = MongoClient(MONGO_URI)
 db = client.recipe_app
@@ -29,19 +31,25 @@ oauth = OAuth(app)
 
 nonce = generate_token()
 
+# Dex configuration to load from environment variables
 DEX_CLIENT_ID: str = os.getenv("OIDC_CLIENT_ID", "flask-app")
 DEX_CLIENT_NAME: str = os.getenv("OIDC_CLIENT_NAME", DEX_CLIENT_ID)
 DEX_CLIENT_SECRET: str = os.getenv("OIDC_CLIENT_SECRET", "flask-secret")
 
+# Dex server endpoints
+# Internal host for server-to-server communication
 DEX_INTERNAL_HOST = os.getenv("DEX_INTERNAL_HOST", "http://dex:5556")
+# External host for user-facing URLs
 DEX_EXTERNAL_HOST = os.getenv("DEX_EXTERNAL_HOST", "http://localhost:5556")
 
+# Ensure both hosts are set by having OAuth endpoint URLs constructed from Dex host configuration
 AUTHORIZATION_ENDPOINT = f"{DEX_EXTERNAL_HOST}/auth"
 TOKEN_ENDPOINT = f"{DEX_INTERNAL_HOST}/token"
 JWKS_URI = f"{DEX_INTERNAL_HOST}/keys"
 USERINFO_ENDPOINT = f"{DEX_INTERNAL_HOST}/userinfo"
 DEVICE_ENDPOINT = f"{DEX_INTERNAL_HOST}/device/code"
 
+# Register OAuth client with Dex
 oauth.register(
     name=DEX_CLIENT_NAME,
     client_id=DEX_CLIENT_ID,
@@ -54,11 +62,7 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
-print(f"Dex OAuth configured:")
-print(f"   Client ID: {DEX_CLIENT_ID}")
-print(f"   Internal Host: {DEX_INTERNAL_HOST}")
-print(f"   External Host: {DEX_EXTERNAL_HOST}")
-
+# Root root for home page
 @app.route('/')
 def home():
     user = session.get('user')
@@ -66,6 +70,7 @@ def home():
         return f"<h2>Logged in as {user['email']}</h2><a href='/logout'>Logout</a>"
     return '<a href="/login">Login with Dex</a>'
 
+# Initiate OAuth login flow
 @app.route("/login")
 def login():
     session["nonce"] = nonce
@@ -89,6 +94,7 @@ def authorize():
         print(f"Authorization error: {e}")
         return redirect("http://localhost:5173?error=auth_failed")
 
+# Handles OAuth callback after user authentication
 @app.route("/logout")
 def logout():
     user_email = session.get('user', {}).get('email', 'unknown')
@@ -96,6 +102,7 @@ def logout():
     print(f"User logged out: {user_email}")
     return redirect(os.getenv("FRONTEND_URL", "http://localhost:5173"))
 
+# API endpoint to get user profile
 @app.route('/api/user/profile')
 def get_user_profile():
     user = session.get('user')
@@ -114,14 +121,16 @@ def fuzzy_match(ingredient, recipe_ingredients, threshold=0.7):
             return True
     return False
 
+# Main API endpoint to search for recipes
 @app.route("/recipes", methods=["GET"])
 def get_recipes():
     try:
+        # Validate Spoonacular API key
         if not SPOONACULAR_API_KEY:
             print("No Spoonacular API key found!")
             return jsonify({'error': 'API key not configured'}), 500
 
-        # Get search parameters
+        # Get search parameters from query string
         ingredients = request.args.get('ingredients', '')
         query = request.args.get('query', '')  # Add support for specific recipe search
         cuisine = request.args.get('cuisine', '')
@@ -131,16 +140,6 @@ def get_recipes():
         recipe_type = request.args.get('type', '')
         user_requested_number = int(request.args.get('number', '6'))
         fetch_limit = 50
-        
-        print(f"Recipe search request:")
-        print(f"   Ingredients: {ingredients}")
-        print(f"   Query: {query}")
-        print(f"   Cuisine: {cuisine}")
-        print(f"   Diet: {diet}")
-        print(f"   Type: {recipe_type}")
-        print(f"   Max time: {max_ready_time}")
-        print(f"   Intolerances: {intolerances}")
-        print(f"   Number: {user_requested_number}")
 
         # Check if we have either ingredients or query
         if not ingredients and not query:
@@ -165,7 +164,7 @@ def get_recipes():
         elif query:
             params['query'] = query
         
-        # Add other filters
+        # Add other optional filter parameters
         if cuisine:
             params['cuisine'] = cuisine
         if diet:
@@ -177,17 +176,14 @@ def get_recipes():
         if recipe_type:
             params['type'] = recipe_type
         
-        print(f"📡 Making request to: {search_url}")
-        print(f"📋 Full parameters: {params}")
-        
         response = requests.get(search_url, params=params, timeout=30)
         
         print(f"Spoonacular response status: {response.status_code}")
         
+        # Check if the response is successful
         if response.status_code == 200:
             data = response.json()
             recipes = data.get('results', [])
-            print(f"📋 Found {len(recipes)} recipes")
 
             if ingredients:
                 requested_ingredients = set(ingredient.strip().lower() for ingredient in ingredients.split(','))
@@ -206,12 +202,11 @@ def get_recipes():
                         filtered_recipes.append(recipe)
 
                 recipes = filtered_recipes
-                print(f"🔎 After fuzzy ingredient filtering, {len(recipes)} recipes remain")
             
             if len(recipes) == 0:
-                print("No recipes found")
                 return jsonify([])
             
+            # Process and normalize the recipe data for a consistent frontend display
             processed_recipes = []
             for i, recipe in enumerate(recipes):
                 print(f"🍽️ Processing recipe {i + 1}: {recipe.get('title', 'Unknown')}")
@@ -229,6 +224,7 @@ def get_recipes():
                 if not image_url and recipe.get('id'):
                     image_url = f"https://spoonacular.com/recipeImages/{recipe['id']}-312x231.jpg"
                 
+                # Process the recipe data to ensure all fields are present
                 processed_recipe = {
                     'id': recipe.get('id'),
                     'title': recipe.get('title', f'Recipe {recipe.get("id", "")}'),
@@ -255,7 +251,8 @@ def get_recipes():
             
             print(f"Returning {len(processed_recipes)} processed recipes")
             return jsonify(processed_recipes)
-            
+        
+        # Error handling for Spoonacular API responses
         elif response.status_code == 402:
             print("Spoonacular API quota exceeded")
             return jsonify({'error': 'API quota exceeded. Please try again later.'}), 402
@@ -272,6 +269,8 @@ def get_recipes():
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Internal server error'}), 500
+
+# API endpoints for fetching static data like cuisines, diets, intolerances, and meal types
 
 @app.route('/api/cuisines')
 def get_cuisines():
@@ -310,6 +309,7 @@ def get_meal_types():
     ]
     return jsonify(meal_types)
 
+# API endpoints for comments on recipes
 @app.route('/api/recipes/<int:recipe_id>/comments', methods=['GET'])
 def get_comments(recipe_id):
     try:
@@ -319,6 +319,7 @@ def get_comments(recipe_id):
         print(f"Error fetching comments: {e}")
         return jsonify({'success': False, 'error': 'Failed to fetch comments'}), 500
 
+# API endpoint to create a new comment on a recipe
 @app.route('/api/recipes/<int:recipe_id>/comments', methods=['POST'])
 def create_comment(recipe_id):
     user = session.get('user')
@@ -348,7 +349,8 @@ def create_comment(recipe_id):
         print(f"Error creating comment: {e}")
         return jsonify({'success': False, 'error': 'Failed to create comment'}), 500
 
-# FAVORITES ENDPOINTS
+
+# API endpoints for user favorites
 @app.route('/api/favorites', methods=['POST'])
 def add_favorite():
     user = session.get('user')
@@ -396,6 +398,7 @@ def add_favorite():
         print(f"Error adding favorite: {e}")
         return jsonify({'success': False, 'error': 'Failed to add favorite'}), 500
 
+# API endpoint to remove a recipe from favorites
 @app.route('/api/favorites/<int:recipe_id>', methods=['DELETE'])  
 def remove_favorite(recipe_id):
     user = session.get('user')
@@ -425,6 +428,7 @@ def remove_favorite(recipe_id):
         print(f"Error removing favorite: {e}")
         return jsonify({'success': False, 'error': 'Failed to remove favorite'}), 500
 
+# API endpoint to get user's favorite recipes
 @app.route('/api/user/favorites', methods=['GET'])
 def get_user_favorites():
     user = session.get('user')
@@ -472,7 +476,7 @@ def get_user_favorites():
         print(f"Error getting favorites: {e}")
         return jsonify({'success': False, 'error': 'Failed to get favorites'}), 500
 
-# REVIEWS ENDPOINTS  
+# API endpoint to add a review for a recipe
 @app.route('/api/reviews', methods=['POST'])
 def add_review():
     user = session.get('user')
@@ -533,6 +537,7 @@ def add_review():
         print(f"Error adding review: {e}")
         return jsonify({'success': False, 'error': 'Failed to add review'}), 500
 
+# API endpoint to get reviews for a specific recipe by the authenticated user
 @app.route('/api/user/reviews', methods=['GET'])
 def get_user_reviews():
     user = session.get('user')
