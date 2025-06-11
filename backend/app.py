@@ -217,9 +217,7 @@ def get_recipes():
             
             # Process and normalize the recipe data for a consistent frontend display
             processed_recipes = []
-            for i, recipe in enumerate(recipes):
-                print(f"🍽️ Processing recipe {i + 1}: {recipe.get('title', 'Unknown')}")
-                
+            for i, recipe in enumerate(recipes):                
                 nutrition_data = recipe.get('nutrition', {})
                 nutrients = nutrition_data.get('nutrients', [])
                 
