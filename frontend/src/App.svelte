@@ -91,31 +91,12 @@
       selectedCuisine = state.selectedCuisine || "";
     }
   }
+
   onMount(() => {
     checkAuthStatus();
     loadFilterOptions();
     loadSearchState();
   });
-
-  let accountView = "";
-  let myReviews: any[] = [];
-
-  async function loadMyReviews() {
-    try {
-      const response = await fetch(`${BACKEND_BASE}/api/users/me/reviews`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        myReviews = data.reviews;
-        } else {
-        console.error('Failed to load your reviews');
-      }
-    } catch (err) {
-      console.error('Error loading your reviews', err);
-    }
-  }
 
   async function loadFilterOptions() {
     try {
@@ -162,56 +143,46 @@
     if (!user) return;
     
     try {
-      // Try different possible endpoints for loading user data
-      const endpoints = {
-        favorites: [
-          `${BACKEND_BASE}/api/user/favorites`,
-          `${BACKEND_BASE}/api/favorites`,
-          `${BACKEND_BASE}/api/user/profile/favorites`
-        ],
-        reviews: [
-          `${BACKEND_BASE}/api/user/reviews`,
-          `${BACKEND_BASE}/api/reviews`,
-          `${BACKEND_BASE}/api/user/profile/reviews`
-        ]
-      };
-
-      // Try to load favorites
-      for (const endpoint of endpoints.favorites) {
-        try {
-          const favoritesRes = await fetch(endpoint, { 
-            credentials: 'include',
-            headers: { 'Accept': 'application/json' }
-          });
-          
-          if (favoritesRes.ok) {
-            const favData = await favoritesRes.json();
-            userFavorites = favData.favorites || favData || [];
-            console.log(`Loaded favorites from: ${endpoint}`);
-            break;
+      console.log('Loading user data...');
+      
+      // Load favorites
+      try {
+        const favoritesRes = await fetch(`${BACKEND_BASE}/api/user/favorites`, { 
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        if (favoritesRes.ok) {
+          const favData = await favoritesRes.json();
+          if (favData.success) {
+            userFavorites = favData.favorites || [];
+            console.log(`Loaded ${userFavorites.length} favorites`);
           }
-        } catch (error) {
-          console.log(`Failed to load favorites from ${endpoint}:`, error);
         }
+      } catch (error) {
+        console.log('Failed to load favorites:', error);
       }
 
-      // Try to load reviews
-      for (const endpoint of endpoints.reviews) {
-        try {
-          const reviewsRes = await fetch(endpoint, { 
-            credentials: 'include',
-            headers: { 'Accept': 'application/json' }
-          });
-          
-          if (reviewsRes.ok) {
-            const reviewData = await reviewsRes.json();
-            userReviews = reviewData.reviews || reviewData || [];
-            console.log(`Loaded reviews from: ${endpoint}`);
-            break;
+      // Load reviews
+      try {
+        const reviewsRes = await fetch(`${BACKEND_BASE}/api/user/reviews`, { 
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        if (reviewsRes.ok) {
+          const reviewData = await reviewsRes.json();
+          if (reviewData.success) {
+            // Ensure all reviews have fallback images
+            userReviews = (reviewData.reviews || []).map((review: any) => ({
+              ...review,
+              recipe_image: review.recipe_image || '/Temp_Image.jpg'
+            }));
+            console.log(`Loaded ${userReviews.length} reviews`);
           }
-        } catch (error) {
-          console.log(`Failed to load reviews from ${endpoint}:`, error);
         }
+      } catch (error) {
+        console.log('Failed to load reviews:', error);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -242,167 +213,166 @@
       searchRecipes();
     } else {
       recipes = [];
-        saveSearchState();
+      saveSearchState();
     }
   }
 
-async function searchRecipes() {
-  loading = true;
-  searchError = "";
-  
-  try {
-    let searchTerm = "";
-    if (ingredientList.length > 0) {
-      searchTerm = ingredientList.join(',');
-    } else if (ingredients.trim()) {
-      searchTerm = ingredients.trim().toLowerCase();
-    } else {
-      recipes = [];
-      loading = false;
-      return;
-    }
-
-    const params = new URLSearchParams({
-      ingredients: searchTerm
-    });
-
-    if (selectedCuisine) params.append('cuisine', selectedCuisine);
-    if (selectedDiet) params.append('diet', selectedDiet);
-    if (selectedIntolerances.length > 0) params.append('intolerances', selectedIntolerances.join(','));
-    if (selectedTime) params.append('maxReadyTime', selectedTime);
-    if (selectedMealType) params.append('type', selectedMealType);
-
-    params.append('number', '6');
-
-    const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
-    const res = await fetch(url);
+  async function searchRecipes() {
+    loading = true;
+    searchError = "";
     
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
-
-    const recipeResults = await res.json();
-
-    if (!Array.isArray(recipeResults)) {
-      searchError = recipeResults.error || "Invalid response format";
-      recipes = [];
-      loading = false;
-      return;
-    }
-
-    if (recipeResults.length === 0) {
-      searchError = "No recipes found for these ingredients. Try different ingredients or remove some filters.";
-      recipes = [];
-      loading = false;
-      return;
-    }
-
-    recipes = recipeResults.map((r: any) => ({
-      id: r.id,
-      title: r.title || `Recipe ${r.id}`,
-      image: r.image || '/Temp_Image.jpg', 
-      calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
-      rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
-      cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
-      readyInMinutes: r.readyInMinutes || 30,
-      servings: r.servings || 1,
-      vegetarian: r.vegetarian || false,
-      vegan: r.vegan || false,
-      glutenFree: r.glutenFree || false,
-      dairyFree: r.dairyFree || false,
-      dishTypes: r.dishTypes || ["main course"],
-      extendedIngredients: r.extendedIngredients || [],
-      analyzedInstructions: r.analyzedInstructions || [],
-      nutrition: r.nutrition || {
-        nutrients: [
-          { name: "Calories", amount: r.calories || 0, unit: "kcal" },
-          { name: "Fat", amount: 0, unit: "g" },
-          { name: "Carbohydrates", amount: 0, unit: "g" },
-          { name: "Protein", amount: 0, unit: "g" }
-        ]
+    try {
+      let searchTerm = "";
+      if (ingredientList.length > 0) {
+        searchTerm = ingredientList.join(',');
+      } else if (ingredients.trim()) {
+        searchTerm = ingredients.trim().toLowerCase();
+      } else {
+        recipes = [];
+        loading = false;
+        return;
       }
-    }));
-    
-    saveSearchState();
-    
-  } catch (error) {
-    console.error("Error fetching recipes:", error);
-    searchError = `Failed to fetch recipes: ${(error as Error).message}`;
-    recipes = [];
-  } finally {
-    loading = false;
-  }
-}
 
-async function searchSpecificRecipe() {
-  if (!specificRecipeQuery.trim()) return;
-  
-  specificRecipeLoading = true;
-  searchError = "";
-  
-  try {
-    const params = new URLSearchParams({
-      query: specificRecipeQuery.trim(),
-      number: '6'
-    });
+      const params = new URLSearchParams({
+        ingredients: searchTerm
+      });
 
-    const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
-    const res = await fetch(url);
-    
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
+      if (selectedCuisine) params.append('cuisine', selectedCuisine);
+      if (selectedDiet) params.append('diet', selectedDiet);
+      if (selectedIntolerances.length > 0) params.append('intolerances', selectedIntolerances.join(','));
+      if (selectedTime) params.append('maxReadyTime', selectedTime);
+      if (selectedMealType) params.append('type', selectedMealType);
 
-    const results = await res.json();
-    
-    if (!Array.isArray(results)) {
-      searchError = results.error || "Invalid response format";
-      specificRecipeResults = [];
-      return;
-    }
+      params.append('number', '6');
 
-    if (results.length === 0) {
-      searchError = "No recipes found for this search. Try different keywords.";
-      specificRecipeResults = [];
-      return;
-    }
-
-    specificRecipeResults = results.map((r: any) => ({
-      id: r.id,
-      title: r.title || `Recipe ${r.id}`,
-      image: r.image || '/Temp_Image.jpg',
-      calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
-      rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
-      cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
-      readyInMinutes: r.readyInMinutes || 30,
-      servings: r.servings || 1,
-      vegetarian: r.vegetarian || false,
-      vegan: r.vegan || false,
-      glutenFree: r.glutenFree || false,
-      dairyFree: r.dairyFree || false,
-      dishTypes: r.dishTypes || ["main course"],
-      extendedIngredients: r.extendedIngredients || [],
-      analyzedInstructions: r.analyzedInstructions || [],
-      nutrition: r.nutrition || {
-        nutrients: [
-          { name: "Calories", amount: r.calories || 0, unit: "kcal" },
-          { name: "Fat", amount: 0, unit: "g" },
-          { name: "Carbohydrates", amount: 0, unit: "g" },
-          { name: "Protein", amount: 0, unit: "g" }
-        ]
+      const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
+      const res = await fetch(url);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
-    }));
-    
-    saveSearchState();
-    
-  } catch (error) {
-    console.error("Error searching specific recipes:", error);
-    searchError = `Failed to search recipes: ${(error as Error).message}`;
-    specificRecipeResults = [];
-  } finally {
-    specificRecipeLoading = false;
+
+      const recipeResults = await res.json();
+
+      if (!Array.isArray(recipeResults)) {
+        searchError = recipeResults.error || "Invalid response format";
+        recipes = [];
+        loading = false;
+        return;
+      }
+
+      if (recipeResults.length === 0) {
+        searchError = "No recipes found for these ingredients. Try different ingredients or remove some filters.";
+        recipes = [];
+        loading = false;
+        return;
+      }
+
+      recipes = recipeResults.map((r: any) => ({
+        id: r.id,
+        title: r.title || `Recipe ${r.id}`,
+        image: r.image || '/Temp_Image.jpg', 
+        calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
+        rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
+        cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
+        readyInMinutes: r.readyInMinutes || 30,
+        servings: r.servings || 1,
+        vegetarian: r.vegetarian || false,
+        vegan: r.vegan || false,
+        glutenFree: r.glutenFree || false,
+        dairyFree: r.dairyFree || false,
+        dishTypes: r.dishTypes || ["main course"],
+        extendedIngredients: r.extendedIngredients || [],
+        analyzedInstructions: r.analyzedInstructions || [],
+        nutrition: r.nutrition || {
+          nutrients: [
+            { name: "Calories", amount: r.calories || 0, unit: "kcal" },
+            { name: "Fat", amount: 0, unit: "g" },
+            { name: "Carbohydrates", amount: 0, unit: "g" },
+            { name: "Protein", amount: 0, unit: "g" }
+          ]
+        }
+      }));
+      saveSearchState();
+      
+    } catch (error) {
+      console.error("Error fetching recipes:", error);
+      searchError = `Failed to fetch recipes: ${(error as Error).message}`;
+      recipes = [];
+    } finally {
+      loading = false;
+    }
   }
-}
+
+  async function searchSpecificRecipe() {
+    if (!specificRecipeQuery.trim()) return;
+    
+    specificRecipeLoading = true;
+    searchError = "";
+    
+    try {
+      const params = new URLSearchParams({
+        query: specificRecipeQuery.trim(),
+        number: '6'
+      });
+
+      const url = `${BACKEND_BASE}/recipes?${params.toString()}`;
+      const res = await fetch(url);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      const results = await res.json();
+      
+      if (!Array.isArray(results)) {
+        searchError = results.error || "Invalid response format";
+        specificRecipeResults = [];
+        return;
+      }
+
+      if (results.length === 0) {
+        searchError = "No recipes found for this search. Try different keywords.";
+        specificRecipeResults = [];
+        return;
+      }
+
+      specificRecipeResults = results.map((r: any) => ({
+        id: r.id,
+        title: r.title || `Recipe ${r.id}`,
+        image: r.image || '/Temp_Image.jpg',
+        calories: r.calories || r.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
+        rating: r.spoonacularScore !== undefined ? Math.round(r.spoonacularScore / 20 * 10) / 10 : 3.0,
+        cuisines: r.cuisines && r.cuisines.length > 0 ? r.cuisines : ["International"],
+        readyInMinutes: r.readyInMinutes || 30,
+        servings: r.servings || 1,
+        vegetarian: r.vegetarian || false,
+        vegan: r.vegan || false,
+        glutenFree: r.glutenFree || false,
+        dairyFree: r.dairyFree || false,
+        dishTypes: r.dishTypes || ["main course"],
+        extendedIngredients: r.extendedIngredients || [],
+        analyzedInstructions: r.analyzedInstructions || [],
+        nutrition: r.nutrition || {
+          nutrients: [
+            { name: "Calories", amount: r.calories || 0, unit: "kcal" },
+            { name: "Fat", amount: 0, unit: "g" },
+            { name: "Carbohydrates", amount: 0, unit: "g" },
+            { name: "Protein", amount: 0, unit: "g" }
+          ]
+        }
+      }));
+
+      saveSearchState();
+      
+    } catch (error) {
+      console.error("Error searching specific recipes:", error);
+      searchError = `Failed to search recipes: ${(error as Error).message}`;
+      specificRecipeResults = [];
+    } finally {
+      specificRecipeLoading = false;
+    }
+  }
 
   function switchTab(tab: string) {
     activeTab = tab;
@@ -427,44 +397,54 @@ async function searchSpecificRecipe() {
     try {
       const isFavorited = userFavorites.some(fav => fav.id === recipe.id);
       
-      // For now, just update local state until backend endpoints are ready
       if (isFavorited) {
-        userFavorites = userFavorites.filter(fav => fav.id !== recipe.id);
-        console.log('Removed from favorites (local only)');
-      } else {
-        userFavorites = [...userFavorites, recipe];
-        console.log('Added to favorites (local only)');
-      }
+        // Remove from favorites
+        const response = await fetch(`${BACKEND_BASE}/api/favorites/${recipe.id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
 
-      // TODO: Remove this block once backend endpoints are implemented
-      alert(`Recipe ${isFavorited ? 'removed from' : 'added to'} favorites! (This is currently stored locally only)`);
-      
-      // Uncomment this section once your backend has the correct endpoints:
-      /*
-      const response = await fetch(`${BACKEND_BASE}/api/favorites${isFavorited ? `/${recipe.id}` : ''}`, {
-        method: isFavorited ? 'DELETE' : 'POST',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        ...(isFavorited ? {} : { body: JSON.stringify({ recipeId: recipe.id, recipe: recipe }) })
-      });
-
-      if (!response.ok) {
-        // Revert the local change if backend fails
-        if (isFavorited) {
-          userFavorites = [...userFavorites, recipe];
-        } else {
-          userFavorites = userFavorites.filter(fav => fav.id !== recipe.id);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-        throw new Error(`HTTP ${response.status}`);
+
+        const result = await response.json();
+        if (result.success) {
+          userFavorites = userFavorites.filter(fav => fav.id !== recipe.id);
+          console.log('Removed from favorites');
+        }
+      } else {
+        // Add to favorites
+        const response = await fetch(`${BACKEND_BASE}/api/favorites`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ 
+            recipeId: recipe.id, 
+            recipe: recipe 
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          userFavorites = [...userFavorites, recipe];
+          console.log('Added to favorites');
+        }
       }
-      */
-      
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      alert('Favorites feature is not yet implemented on the backend.');
+      alert('Error updating favorites. Please try again.');
     }
   }
 
@@ -489,27 +469,6 @@ async function searchSpecificRecipe() {
     }
 
     try {
-      // For now, just update local state until backend endpoints are ready
-      const newReview = {
-        id: Date.now(),
-        recipeId: selectedRecipe.id,
-        rating: userRating,
-        review: userReview.trim(),
-        createdAt: new Date().toISOString(),
-        userEmail: user.email
-      };
-      
-      userReviews = [...userReviews, newReview];
-      showReviewForm = false;
-      userRating = 0;
-      userReview = "";
-      
-      alert('Review submitted! (This is currently stored locally only)');
-      console.log('Review submitted (local only):', newReview);
-      
-      // TODO: Remove this block once backend endpoints are implemented
-      // Uncomment this section once your backend has the correct endpoints:
-      /*
       const response = await fetch(`${BACKEND_BASE}/api/reviews`, {
         method: 'POST',
         credentials: 'include',
@@ -521,21 +480,47 @@ async function searchSpecificRecipe() {
           recipeId: selectedRecipe.id,
           rating: userRating,
           review: userReview.trim(),
-          recipeTitle: selectedRecipe.title
+          recipeTitle: selectedRecipe.title,
+          recipeImage: selectedRecipe.image || '/Temp_Image.jpg'  // Ensure image is included
         })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
       
       const result = await response.json();
-      // Update with backend response
-      */
+      
+      if (result.success) {
+        // Add the new review to local state with all data
+        const newReview = {
+          id: result.review_id,
+          recipeId: selectedRecipe.id,
+          recipe_title: selectedRecipe.title,
+          recipe_image: selectedRecipe.image || '/Temp_Image.jpg',  // Ensure image is included
+          rating: userRating,
+          review: userReview.trim(),
+          createdAt: new Date().toISOString(),
+          userEmail: user.email
+        };
+        
+        userReviews = [...userReviews, newReview];
+        showReviewForm = false;
+        userRating = 0;
+        userReview = "";
+        
+        alert('Review submitted successfully!');
+        console.log('Review submitted:', newReview);
+      }
       
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('Reviews feature is not yet implemented on the backend.');
+      if ((error as Error).message.includes('already reviewed')) {
+        alert('You have already reviewed this recipe.');
+      } else {
+        alert('Error submitting review. Please try again.');
+      }
     }
   }
 
@@ -655,6 +640,11 @@ async function searchSpecificRecipe() {
     currentView = "reviews";
     localStorage.setItem("currentView", currentView);
     showAccountSidebar = false;
+    
+    // Load reviews when switching to reviews view (same as favorites)
+    if (user && userReviews.length === 0) {
+      loadUserData();
+    }
   }
 </script>
 
@@ -674,62 +664,18 @@ async function searchSpecificRecipe() {
             <button class="nav-button" on:click={() => (showAccountSidebar = !showAccountSidebar)}>
               👤 Account ▾
             </button>
-
             {#if showAccountSidebar}
               <div class="dropdown-menu">
                 <div class="user-email">{user.email}</div>
-
-                <button
-                  class="favorites-btn link-button"
-                  on:click={() => { accountView = 'favorites'; }}
-                >
-                  ⭐ My Favorites
-                </button>
-
-                <button
-                  class="reviews-btn link-button"
-                  on:click={() => { accountView = 'reviews'; loadMyReviews(); }}
-                >
-                  📝 My Reviews
-                </button>
-
+                <button class="favorites-btn link-button" on:click={showFavorites}>⭐ My Favorites</button>
+                <button class="reviews-btn link-button" on:click={showReviews}>📝 My Reviews</button>
                 <button class="logout-btn link-button" on:click={logout}>
                   🚪 Logout
                 </button>
               </div>
-
-              <!-- Account sidebar content -->
-              {#if accountView === 'favorites'}
-                <h3>Your Favorites</h3>
-                {#if user.Favorites.length > 0}
-                  {#each user.Favorites as fav (fav.id)}
-                    <div>
-                      <h4>{fav.title}</h4>
-                    </div>
-                  {/each}
-                {:else}
-                  <p>You have no favorites yet.</p>
-                {/if}
-              {/if}
-
-              {#if accountView === 'reviews'}
-                <h3>Your Reviews</h3>
-                {#if myReviews.length > 0}
-                  {#each myReviews as review (review.id)}
-                    <div>
-                      <h4>{review.recipe.title}</h4>
-                      <p>{review.text}</p>
-                    </div>
-                  {/each}
-                {:else}
-                  <p>You have not written any reviews yet.</p>
-                {/if}
-              {/if}
-
             {/if}
           </div>
         {:else}
-
           <button class="nav-button" on:click={login}>
             Login
           </button>
@@ -743,6 +689,10 @@ async function searchSpecificRecipe() {
   {/if}
 {#if currentView === "home"}
 
+  
+
+
+
   <!-- HERO SECTION -->
   <section class="hero-section">
     <div class="hero-content">
@@ -755,10 +705,10 @@ async function searchSpecificRecipe() {
   <section class="search-section">
     <div class="search-tabs">
       <button class="tab-button {activeTab === 'ingredients' ? 'active' : ''}" on:click={() => switchTab('ingredients')}>
-        Use My Ingredients
+        USE MY INGREDIENTS
       </button>
       <button class="tab-button {activeTab === 'specific' ? 'active' : ''}" on:click={() => switchTab('specific')}>
-        Find Specific Recipe
+        FIND SPECIFIC RECIPE
       </button>
     </div>
 
@@ -1080,28 +1030,69 @@ async function searchSpecificRecipe() {
  {/if}
 
  <!-- RECIPE MODAL - FULL SCREEN WITH UNIFORM FONTS -->
-
-{:else if currentView === "reviews"}
-    <section class="favorites-section">
-      <h2 class="section-title">
-        <span class="title-icon">📝</span>
-        MY REVIEWS ({userReviews.length})
-      </h2>
-      {#if userReviews.length === 0}
-        <p class="empty-message">You have not written any reviews yet.</p>
-      {:else}
-        <div class="reviews-list">
-          {#each userReviews as review}
-            <div class="review-item">
-              <div class="review-header">
-                <div class="review-rating">{renderStars(review.rating)}</div>
-                <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
+  {:else if currentView === "reviews"}
+    <section class="reviews-page">
+      <div class="reviews-container">
+        <h2 class="reviews-page-title">
+          <span class="title-icon">📝</span>
+          MY REVIEWS ({userReviews.length})
+        </h2>
+        
+        {#if userReviews.length === 0}
+          <div class="empty-state-reviews">
+            <div class="empty-icon">📝</div>
+            <h3>No Reviews Yet</h3>
+            <p>Start exploring recipes and share your thoughts with the community!</p>
+            <button class="cta-button" on:click={showHome}>
+              <span>🔍</span>
+              Find Recipes
+            </button>
+          </div>
+        {:else}
+          <div class="reviews-grid">
+            {#each userReviews as review, index}
+              <div class="review-card-modern" style="animation-delay: {index * 0.1}s">
+                <div class="review-image-wrapper">
+                  <img 
+                    src={review.recipe_image || '/Temp_Image.jpg'} 
+                    alt={review.recipe_title || 'Recipe'} 
+                    class="review-recipe-img"
+                    on:error={handleImageError}
+                  />
+                  <div class="image-overlay">
+                    <span class="view-recipe-text">View Recipe</span>
+                  </div>
+                </div>
+                
+                <div class="review-details">
+                  <div class="review-header-modern">
+                    <h3 class="recipe-title-modern">{review.recipe_title || `Recipe ${review.recipeId}`}</h3>
+                    <div class="date-badge-modern">
+                      {new Date(review.createdAt).toLocaleDateString('en-US', { 
+                        month: 'numeric', 
+                        day: 'numeric', 
+                        year: '2-digit' 
+                      })}
+                    </div>
+                  </div>
+                  
+                  <div class="rating-stars-modern">
+                    {#each Array(5) as _, i}
+                      <span class="star {i < review.rating ? 'filled' : 'empty'}">★</span>
+                    {/each}
+                  </div>
+                  
+                  <div class="review-text-wrapper">
+                    <div class="quote-mark-start">"</div>
+                    <p class="review-text-modern">{review.review}</p>
+                    <div class="quote-mark-end">"</div>
+                  </div>
+                </div>
               </div>
-              <p class="review-text">{review.review}</p>
-            </div>
-          {/each}
-        </div>
-      {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
     </section>
   {:else if currentView === "favorites"}
     <section class="favorites-section">
@@ -1306,19 +1297,20 @@ async function searchSpecificRecipe() {
            {/if}
            
            <!-- Display User's Reviews -->
-           {#if accountView === 'reviews'}
-              <h2>Your Reviews</h2>
-              {#if myReviews.length > 0}
-                {#each myReviews as review (review.id)}
-                  <div class="review">
-                    <h3>{review.recipe.title}</h3>
-                    <p>{review.text}</p>
-                  </div>
-                {/each}
-              {:else}
-                <p>You have not written any reviews yet.</p>
-              {/if}
-            {/if}
+           {#if userReviews.length > 0}
+             <div class="user-reviews">
+               <h3>Your Reviews</h3>
+               {#each userReviews.filter(review => review.recipeId === selectedRecipe.id) as review}
+                 <div class="review-item">
+                   <div class="review-header">
+                     <div class="review-rating">{renderStars(review.rating)}</div>
+                     <span class="review-date">{new Date(review.createdAt).toLocaleDateString()}</span>
+                   </div>
+                   <p class="review-text">{review.review}</p>
+                 </div>
+               {/each}
+             </div>
+           {/if}
            
            <!-- Comments Section -->
            <Comments recipeId={selectedRecipe.id} {user} backendBase={BACKEND_BASE} />
