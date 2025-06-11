@@ -160,7 +160,12 @@ def get_recipes():
         
         # Add ingredients or query parameter
         if ingredients:
-            params['includeIngredients'] = ingredients
+            requested_ingredients = [
+                ingred.strip().lower() for ingred in ingredients.split(',') if ingred.strip()
+            ]
+            if requested_ingredients:
+                params['includeIngredients'] = requested_ingredients[0]
+
         elif query:
             params['query'] = query
         
@@ -186,22 +191,26 @@ def get_recipes():
             recipes = data.get('results', [])
 
             if ingredients:
-                requested_ingredients = set(ingredient.strip().lower() for ingredient in ingredients.split(','))
+                remaining_ingredients = requested_ingredients[1:]
+    
+                filter = recipes
 
-                filtered_recipes = []
-                for recipe in recipes:
-                    recipe_ingredients = set(
-                        ingred['name'].strip().lower()
-                        for ingred in recipe.get('extendedIngredients', [])
-                    )
-                    all_matched = all(
-                        fuzzy_match(req, recipe_ingredients)
-                        for req in requested_ingredients
-                    )
-                    if all_matched:
-                        filtered_recipes.append(recipe)
+                for i, req_ingredient in enumerate(remaining_ingredients):
+                    strict_filtering = []
+                    for recipe in filter:
+                        recipe_ingredients = set(
+                            ingred['name'].strip().lower()
+                            for ingred in recipe.get('extendedIngredients', [])
+                        )
+                        if fuzzy_match(req_ingredient, recipe_ingredients):
+                            strict_filtering.append(recipe)
 
-                recipes = filtered_recipes
+                    filter = strict_filtering
+
+                    if not filter:
+                        break
+
+                recipes = filter
             
             if len(recipes) == 0:
                 return jsonify([])

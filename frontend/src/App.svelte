@@ -744,11 +744,6 @@
 
     <!-- Search input and buttons -->
     {#if activeTab === 'ingredients'}
-      <h2 class="search-title">Search Recipes by Ingredients</h2>
-    {:else}
-      <h2 class="search-title">Search for Specific Recipes</h2>
-    {/if}
-    {#if activeTab === 'ingredients'}
       <div class="search-container">
         <input
           type="text"
