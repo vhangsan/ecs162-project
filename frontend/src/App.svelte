@@ -97,7 +97,9 @@
     loadSearchState();
   });
 
+  let accountView = "";
   let myReviews: any[] = [];
+
   async function loadMyReviews() {
     try {
       const response = await fetch(`${BACKEND_BASE}/api/users/me/reviews`, {
@@ -107,7 +109,7 @@
 
       if (data.success) {
         myReviews = data.reviews;
-      } else {
+        } else {
         console.error('Failed to load your reviews');
       }
     } catch (err) {
@@ -672,18 +674,62 @@ async function searchSpecificRecipe() {
             <button class="nav-button" on:click={() => (showAccountSidebar = !showAccountSidebar)}>
               👤 Account ▾
             </button>
+
             {#if showAccountSidebar}
               <div class="dropdown-menu">
                 <div class="user-email">{user.email}</div>
-                <button class="favorites-btn link-button" on:click={showFavorites}>⭐ My Favorites</button>
-                <button class="reviews-btn link-button" on:click={showReviews}>📝 My Reviews</button>
+
+                <button
+                  class="favorites-btn link-button"
+                  on:click={() => { accountView = 'favorites'; }}
+                >
+                  ⭐ My Favorites
+                </button>
+
+                <button
+                  class="reviews-btn link-button"
+                  on:click={() => { accountView = 'reviews'; loadMyReviews(); }}
+                >
+                  📝 My Reviews
+                </button>
+
                 <button class="logout-btn link-button" on:click={logout}>
                   🚪 Logout
                 </button>
               </div>
+
+              <!-- Account sidebar content -->
+              {#if accountView === 'favorites'}
+                <h3>Your Favorites</h3>
+                {#if user.Favorites.length > 0}
+                  {#each user.Favorites as fav (fav.id)}
+                    <div>
+                      <h4>{fav.title}</h4>
+                    </div>
+                  {/each}
+                {:else}
+                  <p>You have no favorites yet.</p>
+                {/if}
+              {/if}
+
+              {#if accountView === 'reviews'}
+                <h3>Your Reviews</h3>
+                {#if myReviews.length > 0}
+                  {#each myReviews as review (review.id)}
+                    <div>
+                      <h4>{review.recipe.title}</h4>
+                      <p>{review.text}</p>
+                    </div>
+                  {/each}
+                {:else}
+                  <p>You have not written any reviews yet.</p>
+                {/if}
+              {/if}
+
             {/if}
           </div>
         {:else}
+
           <button class="nav-button" on:click={login}>
             Login
           </button>
