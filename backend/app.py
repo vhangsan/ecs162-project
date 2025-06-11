@@ -206,7 +206,7 @@ def get_recipes():
                     'image': image_url,
                     'calories': int(calories) if calories else recipe.get('calories', 0),
                     'spoonacularScore': recipe.get('spoonacularScore', 60),
-                    'cuisines': recipe.get('cuisines', ['International']),
+                    'cuisines': recipe['cuisines'] if recipe.get('cuisines') else [],
                     'readyInMinutes': recipe.get('readyInMinutes', 30),
                     'servings': recipe.get('servings', 4),
                     'vegetarian': recipe.get('vegetarian', False),
