@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import Comments from './Comments.svelte';
 
+  // Core state variables
   let ingredients: string = "";
   let ingredientList: string[] = [];
   let recipes: any[] = [];
@@ -55,10 +56,13 @@
     { id: "snack", label: "SNACK", icon: "🥨" }
   ];
 
+  // Load current view from localStorage or default to "home"
   let currentView = localStorage.getItem("currentView") || "home";
 
+  // Set backend API base URL configuration
   const BACKEND_BASE = import.meta.env.VITE_BACKEND_BASE || "http://localhost:8000";
 
+  // Save current search state to localStorage to aid in page reload
   function saveSearchState() {
     localStorage.setItem('searchState', JSON.stringify({
       activeTab,
@@ -74,6 +78,8 @@
       selectedCuisine
     }));
   }
+
+  // Load search state from localStorage to restore previous search
   function loadSearchState() {
     const savedState = localStorage.getItem('searchState');
     if (savedState) {
@@ -98,6 +104,7 @@
     loadSearchState();
   });
 
+  // Load filter options from backend or use defaults
   async function loadFilterOptions() {
     try {
       const [cuisinesRes, dietsRes, intolerancesRes, mealTypesRes] = await Promise.all([
@@ -121,6 +128,7 @@
     }
   }
 
+  // Check if user is authenticated and load their data
   async function checkAuthStatus() {
     try {
       const response = await fetch(`${BACKEND_BASE}/api/user/profile`, {
@@ -139,6 +147,7 @@
     }
   }
 
+  // Load user-specific data such as favorites and reviews
   async function loadUserData() {
     if (!user) return;
     
@@ -189,14 +198,17 @@
     }
   }
 
+  // Redirect user to backend login endpoint
   function login() {
     window.location.href = `${BACKEND_BASE}/login`;
   }
 
+  // Redirect user to backend logout endpoint
   function logout() {
     window.location.href = `${BACKEND_BASE}/logout`;
   }
 
+  // Add ingredient to the list and save state
   function addIngredient() {
     const trimmed = ingredients.trim().toLowerCase();
     saveSearchState();
@@ -207,6 +219,7 @@
     }
   }
 
+  // Remove ingredient from the list and search for recipes if any ingredients remain
   function removeIngredient(ing: string) {
     ingredientList = ingredientList.filter(i => i !== ing);
     if (ingredientList.length > 0) {
@@ -217,11 +230,13 @@
     }
   }
 
+  // Search for recipes based on ingredients and filters
   async function searchRecipes() {
     loading = true;
     searchError = "";
     
     try {
+      // Determine search term based on ingredient list or user input
       let searchTerm = "";
       if (ingredientList.length > 0) {
         searchTerm = ingredientList.join(',');
@@ -237,6 +252,7 @@
         ingredients: searchTerm
       });
 
+      // Add filter parameters if selected
       if (selectedCuisine) params.append('cuisine', selectedCuisine);
       if (selectedDiet) params.append('diet', selectedDiet);
       if (selectedIntolerances.length > 0) params.append('intolerances', selectedIntolerances.join(','));
@@ -268,6 +284,7 @@
         return;
       }
 
+      // Process and normalize recipe data for consistent frontend display
       recipes = recipeResults.map((r: any) => ({
         id: r.id,
         title: r.title || `Recipe ${r.id}`,
@@ -304,6 +321,7 @@
     }
   }
 
+  // Search for specific recipes based on user query
   async function searchSpecificRecipe() {
     if (!specificRecipeQuery.trim()) return;
     
@@ -337,6 +355,7 @@
         return;
       }
 
+      // Process and normalize specific recipe data for consistent frontend display
       specificRecipeResults = results.map((r: any) => ({
         id: r.id,
         title: r.title || `Recipe ${r.id}`,
@@ -374,6 +393,7 @@
     }
   }
 
+  // Switch between ingredient search and specific recipe search tabs
   function switchTab(tab: string) {
     activeTab = tab;
     if (tab === "ingredients") {
@@ -388,6 +408,7 @@
     saveSearchState();
   }
 
+  // Toggle favorite status for a recipe
   async function toggleFavorite(recipe: any) {
     if (!user) {
       alert('Please log in to favorite recipes');
@@ -524,22 +545,26 @@
     }
   }
 
+  // Toggle dropdown visibility for filters
   function toggleDropdown(dropdown: string) {
     activeDropdown = activeDropdown === dropdown ? "" : dropdown;
   }
 
+  // Reapply filters after any change
   function reapplyFilters() {
     if (ingredientList.length > 0 || ingredients.trim()) {
       searchRecipes();
     }
   }
 
+  // Toggle meal type selection
   function toggleMealType(mealType: string) {
     selectedMealType = selectedMealType === mealType ? "" : mealType;
     saveSearchState();
     reapplyFilters();
   }
 
+  // Select a filter value and toggle its state
   function selectFilter(filterType: string, value: string) {
     switch(filterType) {
       case 'time':
@@ -557,6 +582,7 @@
     reapplyFilters();
   }
 
+  // Toggle intolerance selection
   function toggleIntolerance(intolerance: string) {
     if (selectedIntolerances.includes(intolerance)) {
       selectedIntolerances = selectedIntolerances.filter(i => i !== intolerance);
@@ -567,6 +593,7 @@
     reapplyFilters();
   }
 
+  // Clear all filters and reset state
   function clearAllFilters() {
     selectedMealType = "";
     selectedTime = "";
@@ -577,7 +604,7 @@
     saveSearchState();
     reapplyFilters();
   }
-
+  // Open recipe modal to view details and submit reviews
   function openRecipeModal(recipe: any) {
     selectedRecipe = recipe;
     showRecipeModal = true;
@@ -586,11 +613,13 @@
     showReviewForm = false;
   }
 
+  // Close recipe modal
   function closeRecipeModal() {
     showRecipeModal = false;
     selectedRecipe = null;
   }
 
+  // Render stars based on rating
   function renderStars(rating: number) {
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating - fullStars >= 0.5;
@@ -607,15 +636,18 @@
     return stars;
   }
 
+  // Set user rating for the recipe
   function setRating(rating: number) {
     userRating = rating;
   }
-
+  
+  // Get nutrient value by name, rounding to the nearest integer
   function getNutrientValue(nutrients: any[], name: string): number {
     const nutrient = nutrients.find(n => n.name === name);
     return nutrient ? Math.round(nutrient.amount) : 0;
   }
-
+  
+  // Handle image loading errors by setting a fallback image
   function handleImageError(event: Event) {
     const target = event.target as HTMLImageElement;
     if (target && target.src !== '/Temp_Image.jpg') {
@@ -623,19 +655,21 @@
       target.src = '/Temp_Image.jpg';
     }
   }
-
+  // Show home view
   function showHome() {
     currentView = "home";
     localStorage.setItem("currentView", currentView);
     showAccountSidebar = false;
   }
 
+  // Show favorites view
   function showFavorites() {
     currentView = "favorites";
     localStorage.setItem("currentView", currentView);
     showAccountSidebar = false;
   }
 
+  // Show reviews view
   function showReviews() {
     currentView = "reviews";
     localStorage.setItem("currentView", currentView);
@@ -689,10 +723,6 @@
   {/if}
 {#if currentView === "home"}
 
-  
-
-
-
   <!-- HERO SECTION -->
   <section class="hero-section">
     <div class="hero-content">
@@ -712,6 +742,7 @@
       </button>
     </div>
 
+    <!-- Search input and buttons -->
     {#if activeTab === 'ingredients'}
       <div class="search-container">
         <input
@@ -906,7 +937,7 @@
             </button>
             {#if activeDropdown === 'cuisine'}
               <div class="dropdown-content">
-{#each availableCuisines as option}
+                {#each availableCuisines as option}
                  <button 
                    class="dropdown-option {selectedCuisine === option ? 'selected' : ''}"
                    on:click={() => selectFilter('cuisine', option)}
@@ -1029,7 +1060,7 @@
    </section>
  {/if}
 
- <!-- RECIPE MODAL - FULL SCREEN WITH UNIFORM FONTS -->
+ <!-- RECIPE MODAL -->
   {:else if currentView === "reviews"}
     <section class="reviews-page">
       <div class="reviews-container">
@@ -1320,575 +1351,3 @@
    </div>
  {/if}
 </main>
-
-<style>
- /* Fix for modal blur issue */
- .recipe-detail-modal {
-   position: fixed;
-   top: 0;
-   left: 0;
-   right: 0;
-   bottom: 0;
-   background: rgba(0, 0, 0, 0.8);
-   z-index: 9999;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   backdrop-filter: blur(5px);
- }
-
- .modal-content {
-   background: white;
-   width: 100vw;
-   height: 100vh;
-   border-radius: 0;
-   display: flex;
-   flex-direction: column;
-   position: relative;
-   overflow: hidden;
-   box-shadow: none;
- }
-
- .modal-close-btn {
-   position: absolute;
-   top: 1rem;
-   right: 1rem;
-   background: rgba(0, 0, 0, 0.8);
-   color: white;
-   border: none;
-   border-radius: 50%;
-   width: 45px;
-   height: 45px;
-   cursor: pointer;
-   z-index: 10000;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   font-size: 1.5rem;
-   font-weight: bold;
-   transition: all 0.3s ease;
- }
-
- .modal-close-btn:hover {
-   background: rgba(0, 0, 0, 0.9);
-   transform: scale(1.1);
- }
-
- .recipe-header-compact {
-   background: linear-gradient(135deg, #f5f1e8, #fef7ed);
-   padding: 2rem;
-   border-bottom: 1px solid rgba(45, 90, 39, 0.1);
-   flex-shrink: 0;
- }
-
- .recipe-detail-title {
-   font-family: 'Playfair Display', serif;
-   font-size: 1.6rem;
-   font-weight: 700;
-   color: #2d5a27;
-   margin-bottom: 1rem;
-   line-height: 1.2;
- }
-
- .recipe-rating-info {
-   margin-bottom: 1rem;
- }
-
- .rating-display {
-   display: flex;
-   align-items: center;
-   gap: 1rem;
-   font-size: 1rem;
- }
-
- .rating-stars-large {
-   font-size: 1.2rem;
-   color: #f59e0b;
- }
-
- .rating-number {
-   font-weight: bold;
-   color: #2c3e50;
-   font-size: 1rem;
- }
-
- .cuisine-type {
-   color: #5d6d7e;
-   font-size: 1rem;
- }
-
- .recipe-stats-bar-compact {
-   display: flex;
-   gap: 2rem;
-   margin-bottom: 1rem;
-   padding: 1rem;
-   background: rgba(255, 255, 255, 0.8);
-   border-radius: 15px;
-   backdrop-filter: blur(10px);
- }
-
- .stat-item {
-   font-size: 1rem;
-   color: #2c3e50;
-   display: flex;
-   align-items: center;
-   gap: 0.5rem;
- }
-
- .recipe-actions {
-   display: flex;
-   gap: 1rem;
- }
-
- .favorite-btn, .rate-btn {
-   background: linear-gradient(135deg, #c8e6c9, #7fb069);
-   border: none;
-   padding: 0.8rem 1.5rem;
-   border-radius: 20px;
-   font-weight: 600;
-   cursor: pointer;
-   display: flex;
-   align-items: center;
-   gap: 0.5rem;
-   transition: all 0.3s ease;
-   color: #2d5a27;
-   box-shadow: 0 3px 10px rgba(127, 176, 105, 0.3);
-   font-size: 1rem;
- }
-
- .favorite-btn:hover, .rate-btn:hover {
-   background: linear-gradient(135deg, #2d5a27, #4a7c59);
-   color: white;
-   transform: translateY(-2px);
-   box-shadow: 0 6px 20px rgba(45, 90, 39, 0.4);
- }
-
- .favorite-btn.favorited {
-   background: linear-gradient(135deg, #ff6b9d, #ff8e9b);
-   color: white;
- }
-
- .recipe-scrollable-content {
-   flex: 1;
-   overflow-y: auto;
-   padding: 2rem;
- }
-
- .recipe-body {
-   display: grid;
-   grid-template-columns: 1fr 1fr;
-   gap: 3rem;
-   margin-bottom: 3rem;
- }
-
- .recipe-detail-image {
-   width: 100%;
-   height: 400px;
-   object-fit: cover;
-   border-radius: 15px;
-   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
- }
-
- .nutrition-box {
-   background: #f8f9fa;
-   border: 2px solid rgba(45, 90, 39, 0.2);
-   border-radius: 15px;
-   padding: 2rem;
-   margin-top: 2rem;
- }
-
- .nutrition-box h3 {
-   color: #2d5a27;
-   font-size: 1.2rem;
-   margin-bottom: 1.5rem;
-   font-weight: 600;
- }
-
- .per-serving {
-   font-weight: normal;
-   font-size: 1rem;
-   color: #5d6d7e;
- }
-
- .nutrition-grid {
-   display: grid;
-   grid-template-columns: repeat(2, 1fr);
-   gap: 1.5rem;
- }
-
- .nutrition-item {
-   text-align: center;
-   padding: 1rem;
-   background: rgba(245, 158, 11, 0.1);
-   border-radius: 10px;
- }
-
- .nutrition-value {
-   display: block;
-   font-size: 1.4rem;
-   font-weight: bold;
-   color: #d2691e;
- }
-
- .nutrition-label {
-   display: block;
-   font-size: 0.9rem;
-   color: #5d6d7e;
-   text-transform: uppercase;
-   font-weight: 500;
-   margin-top: 0.5rem;
- }
-
- .ingredients-section h2, .instructions-section h2 {
-   color: #2d5a27;
-   font-family: 'Playfair Display', serif;
-   font-size: 1.4rem;
-   margin-bottom: 1.5rem;
-   font-weight: 600;
- }
-
- .ingredients-list {
-   list-style: none;
-   padding: 0;
- }
-
- .ingredient-item {
-   display: flex;
-   padding: 1rem 0;
-   border-bottom: 1px solid rgba(45, 90, 39, 0.1);
-   gap: 1rem;
- }
-
- .ingredient-measure {
-   font-weight: bold;
-   color: #2d5a27;
-   min-width: 120px;
-   flex-shrink: 0;
-   font-size: 1rem;
- }
-
- .ingredient-name {
-   color: #2c3e50;
-   flex: 1;
-   font-size: 1rem;
- }
-
- .instructions-list {
-   display: flex;
-   flex-direction: column;
-   gap: 1.5rem;
- }
-
- .instruction-step {
-   display: flex;
-   gap: 1rem;
-   align-items: flex-start;
-   padding: 1rem;
-   background: rgba(255, 255, 255, 0.8);
-   border-radius: 15px;
- }
-
- .step-number {
-   background: linear-gradient(135deg, #2d5a27, #4a7c59);
-   color: white;
-   border-radius: 50%;
-   width: 45px;
-   height: 45px;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   font-weight: bold;
-   flex-shrink: 0;
-   box-shadow: 0 4px 10px rgba(45, 90, 39, 0.3);
-   font-size: 1rem;
- }
-
- .step-text {
-   padding-top: 0.5rem;
-   line-height: 1.6;
-   color: #2c3e50;
-   font-size: 1rem;
- }
-
- .no-instructions {
-   text-align: center;
-   color: #5d6d7e;
-   font-style: italic;
-   padding: 2rem;
-   background: rgba(255, 255, 255, 0.5);
-   border-radius: 10px;
-   font-size: 1rem;
- }
-
- .reviews-section-detailed {
-   background: white;
-   border-radius: 15px;
-   padding: 2rem;
-   margin-bottom: 2rem;
-   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
- }
-
- .reviews-section-detailed h2 {
-   color: #2d5a27;
-   font-family: 'Playfair Display', serif;
-   font-size: 1.4rem;
-   margin-bottom: 1.5rem;
-   font-weight: 600;
- }
-
- .add-review-form {
-   background: linear-gradient(135deg, rgba(245, 241, 232, 0.5), rgba(255, 255, 255, 0.8));
-   border: 2px solid rgba(45, 90, 39, 0.1);
-   border-radius: 20px;
-   padding: 2rem;
-   margin-bottom: 2rem;
- }
-
- .rating-input {
-   margin-bottom: 1.5rem;
- }
-
- .rating-label {
-   display: block;
-   font-weight: 600;
-   margin-bottom: 1rem;
-   color: #2c3e50;
-   font-size: 1.1rem;
- }
-
- .star-rating-input {
-   display: flex;
-   gap: 0.5rem;
-   justify-content: center;
- }
-
- .star-btn {
-   font-size: 2rem;
-   color: #ddd;
-   cursor: pointer;
-   background: none;
-   border: none;
-   padding: 0.5rem;
-   border-radius: 50%;
-   transition: all 0.3s ease;
- }
-
- .star-btn:hover,
- .star-btn.active {
-   color: #f59e0b;
-   transform: scale(1.2);
- }
-
- .review-textarea {
-   width: 100%;
-   min-height: 120px;
-   border: 2px solid rgba(45, 90, 39, 0.2);
-   border-radius: 15px;
-   padding: 1.2rem;
-   resize: vertical;
-   font-family: inherit;
-   margin-bottom: 1.5rem;
-   font-size: 1rem;
- }
-
- .review-textarea:focus {
-   outline: none;
-   border-color: #2d5a27;
-   box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.1);
- }
-
- .review-form-actions {
-   display: flex;
-   gap: 1rem;
-   justify-content: center;
- }
-
- .submit-review-btn {
-   background: linear-gradient(135deg, #2d5a27, #4a7c59);
-   color: white;
-   border: none;
-   padding: 1rem 2rem;
-   border-radius: 15px;
-   font-weight: 600;
-   cursor: pointer;
-   display: flex;
-   align-items: center;
-   gap: 0.8rem;
-   font-size: 1rem;
-   transition: all 0.3s ease;
- }
-
- .submit-review-btn:hover {
-   background: linear-gradient(135deg, #4a7c59, #7fb069);
-   transform: translateY(-2px);
-   box-shadow: 0 6px 20px rgba(45, 90, 39, 0.3);
- }
-
- .cancel-review-btn {
-   background: #6c757d;
-   color: white;
-   border: none;
-   padding: 1rem 2rem;
-   border-radius: 15px;
-   cursor: pointer;
-   font-weight: 500;
-   transition: all 0.3s ease;
-   font-size: 1rem;
- }
-
- .cancel-review-btn:hover {
-   background: #5a6268;
-   transform: translateY(-2px);
- }
-
- .user-reviews {
-   margin-bottom: 2rem;
- }
-
- .user-reviews h3 {
-   color: #2d5a27;
-   font-size: 1.1rem;
-   margin-bottom: 1rem;
-   font-weight: 600;
- }
-
- .review-item {
-   background: rgba(245, 241, 232, 0.3);
-   border-radius: 10px;
-   padding: 1.5rem;
-   margin-bottom: 1rem;
-   border-left: 4px solid #2d5a27;
- }
-
- .review-header {
-   display: flex;
-   justify-content: space-between;
-   align-items: center;
-   margin-bottom: 0.8rem;
- }
-
- .review-rating {
-   color: #f59e0b;
-   font-size: 1.1rem;
- }
-
- .review-date {
-   color: #5d6d7e;
-   font-size: 0.9rem;
- }
-
- .review-text {
-   color: #2c3e50;
-   line-height: 1.6;
-   font-size: 1rem;
- }
-
- .comments-section-detailed {
-   background: white;
-   border-radius: 15px;
-   padding: 2rem;
-   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
- }
-
- /* Debug info styles */
- .debug-info {
-   padding: 1.5rem;
-   margin: 2rem 0;
-   border-radius: 15px;
-   text-align: center;
-   font-weight: 500;
-   backdrop-filter: blur(10px);
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   gap: 0.5rem;
- }
- 
- .debug-info.loading {
-   background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(144, 202, 249, 0.1));
-   color: #1976d2;
-   border: 2px solid rgba(33, 150, 243, 0.3);
- }
- 
- .debug-info.error {
-   background: linear-gradient(135deg, rgba(244, 67, 54, 0.1), rgba(239, 154, 154, 0.1));
-   color: #c62828;
-   border: 2px solid rgba(244, 67, 54, 0.3);
- }
- 
- .debug-info.warning {
-   background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 204, 128, 0.1));
-   color: #ef6c00;
-   border: 2px solid rgba(255, 152, 0, 0.3);
- }
-
- .spinner {
-   font-size: 1.5rem;
-   animation: spin 1s linear infinite;
- }
-
- @keyframes spin {
-   from { transform: rotate(0deg); }
-   to { transform: rotate(360deg); }
- }
-
- /* Recipe card animation fix */
- .recipe-card {
-   animation: fadeInUp 0.6s ease-out forwards;
-   opacity: 0;
-   transform: translateY(30px);
- }
-
- .recipe-card:nth-child(1) { animation-delay: 0.1s; }
- .recipe-card:nth-child(2) { animation-delay: 0.2s; }
- .recipe-card:nth-child(3) { animation-delay: 0.3s; }
- .recipe-card:nth-child(4) { animation-delay: 0.4s; }
- .recipe-card:nth-child(5) { animation-delay: 0.5s; }
- .recipe-card:nth-child(6) { animation-delay: 0.6s; }
-
- @keyframes fadeInUp {
-   to {
-     opacity: 1;
-     transform: translateY(0);
-   }
- }
-
- /* Mobile responsive fixes */
- @media (max-width: 768px) {
-   .modal-content {
-     width: 100%;
-     height: 100vh;
-     border-radius: 0;
-   }
-
-   .recipe-body {
-     grid-template-columns: 1fr;
-     gap: 2rem;
-   }
-
-   .recipe-header-compact {
-     padding: 1rem;
-   }
-
-   .recipe-detail-title {
-     font-size: 1.3rem;
-   }
-
-   .recipe-stats-bar-compact {
-     flex-direction: column;
-     gap: 0.5rem;
-   }
-
-   .nutrition-grid {
-     grid-template-columns: repeat(4, 1fr);
-   }
-
-   .ingredients-section h2, .instructions-section h2 {
-     font-size: 1.2rem;
-   }
-
-   .reviews-section-detailed h2 {
-     font-size: 1.2rem;
-   }
- }
-</style>

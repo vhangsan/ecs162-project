@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-
   export let recipeId: number;
   export let user: any = null;
   export let backendBase: string = "http://localhost:8000";
@@ -14,6 +13,7 @@
     loadComments();
   });
 
+  // Load comments when the component mounts
   async function loadComments() {
     try {
       const response = await fetch(`${backendBase}/api/recipes/${recipeId}/comments`, {
@@ -32,6 +32,7 @@
     }
   }
 
+  // Post a new comment
   async function postComment() {
     if (!newComment.trim()) return;
 
@@ -60,6 +61,7 @@
     }
   }
 
+  // Delete a comment
   async function deleteComment(commentId: string) {
     try {
       const response = await fetch(`${backendBase}/api/comments/${commentId}`, {
@@ -79,6 +81,7 @@
   }
 </script>
 
+<!-- Comments section -->
 <div class="comments-section">
   {#if user}
   {:else}
